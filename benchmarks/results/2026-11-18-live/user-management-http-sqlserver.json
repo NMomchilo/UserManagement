@@ -1,0 +1,23 @@
+{
+  "TimestampUtc": "2026-11-18T11:12:25.8183831+00:00",
+  "Runtime": ".NET 10.0.10",
+  "Os": "Microsoft Windows 10.0.22631",
+  "Requests": 1000,
+  "Concurrency": 16,
+  "Results": [
+    {
+      "Scenario": "HTTP user resolution",
+      "RequestsPerSecond": 1630.5321714595887,
+      "P50Ms": 6.5525,
+      "P95Ms": 11.869,
+      "SourceCalls": 1000
+    },
+    {
+      "Scenario": "bounded 5-second cache",
+      "RequestsPerSecond": 1182732.1111768184,
+      "P50Ms": 0.0007,
+      "P95Ms": 0.0008,
+      "SourceCalls": 0
+    }
+  ]
+}

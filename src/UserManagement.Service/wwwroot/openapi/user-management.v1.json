@@ -84,6 +84,30 @@
         }
       }
     },
+    "/v1/registrations/unit-organizations": {
+      "post": {
+        "tags": ["Client"],
+        "summary": "Register a unit organization at consuming API startup",
+        "description": "Uses an existing client key opted in with CanRegisterUnitOrganizations. A registration-enabled key may supply any tenant and organization ID; the configured ClientId identifies the write actor. Creates a missing organization, confirms an identical active one, and never renames or reactivates an existing organization.",
+        "operationId": "registerUnitOrganization",
+        "security": [{"ClientApiKey": []}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {
+          "type": "object", "required": ["id", "tenantId", "name"], "properties": {
+            "id": {"type": "string", "format": "uuid"},
+            "tenantId": {"type": "string", "maxLength": 128},
+            "name": {"type": "string", "maxLength": 200}
+          }
+        }}}},
+        "responses": {
+          "201": {"description": "Organization created"},
+          "200": {"description": "Identical active organization already exists"},
+          "400": {"description": "Invalid organization"},
+          "401": {"description": "Invalid client key"},
+          "403": {"description": "Registration is not enabled for this client"},
+          "409": {"description": "Conflicting or inactive organization"}
+        }
+      }
+    },
     "/v1/users/resolve": {
       "post": {
         "tags": [
@@ -1697,7 +1721,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "X-User-Management-Key",
-        "description": "Credential configured under UserManagementKeys:Clients. Use for resolve and revision only."
+        "description": "Credential configured under UserManagementKeys:Clients. May opt in to startup organization registration for any tenant and organization."
       },
       "AdministratorApiKey": {
         "type": "apiKey",

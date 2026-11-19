@@ -18,7 +18,8 @@ public sealed class UserManagementKeyOptions
         string[] keys = options.Clients.Select(value => value.Key)
             .Concat(options.Administrators.Select(value => value.Key))
             .Append(options.AdminLookupKey).ToArray();
-        return options.Clients.All(value => !string.IsNullOrWhiteSpace(value.ClientId)) &&
+        return options.Clients.All(value => !string.IsNullOrWhiteSpace(value.ClientId) &&
+            value.ClientId.Length <= 200) &&
             options.Administrators.All(value => !string.IsNullOrWhiteSpace(value.ActorId)) &&
             keys.All(value => !string.IsNullOrWhiteSpace(value) && value.Length >= 32) &&
             keys.Distinct(StringComparer.Ordinal).Count() == keys.Length &&

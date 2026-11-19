@@ -24,6 +24,41 @@ public sealed class UserManagementApiTests
     private static readonly Guid OrganizationId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
     [Fact]
+    public async Task OptedInClientKeyRegistersProvidedOrganizationsIdempotentlyAsync()
+    {
+        await using ApiFactory factory = new(useRealActorProvider: true);
+        using HttpClient client = factory.CreateClient();
+        await factory.InitializeAsync();
+        async Task<HttpResponseMessage> RegisterAsync(string key, string tenant, string name, Guid? id = null)
+        {
+            using HttpRequestMessage request = new(HttpMethod.Post, "/v1/registrations/unit-organizations")
+            {
+                Content = JsonContent.Create(new CreateUnitOrganizationRequest(id ?? OrganizationId, tenant, name))
+            };
+            request.Headers.Add("X-User-Management-Key", key);
+            return await client.SendAsync(request);
+        }
+
+        using HttpResponseMessage created = await RegisterAsync(ClientKey, "default", "Alpha");
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        using HttpResponseMessage replay = await RegisterAsync(ClientKey, "default", "Alpha");
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        using HttpResponseMessage renamed = await RegisterAsync(ClientKey, "default", "Renamed");
+        Assert.Equal(HttpStatusCode.Conflict, renamed.StatusCode);
+        using HttpResponseMessage anotherTenant = await RegisterAsync(ClientKey, "another", "Beta", Guid.NewGuid());
+        Assert.Equal(HttpStatusCode.Created, anotherTenant.StatusCode);
+        using IServiceScope scope = factory.Services.CreateScope();
+        UserManagementDbContext db = scope.ServiceProvider.GetRequiredService<UserManagementDbContext>();
+        Assert.Equal(2, await db.UnitOrganizations.CountAsync());
+        Assert.All(await db.UnitOrganizations.ToListAsync(), organization =>
+            Assert.Equal("sample-api", organization.LastUpdateUser));
+        await db.UnitOrganizations.Where(value => value.Id == OrganizationId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(value => value.IsActive, false));
+        using HttpResponseMessage disabled = await RegisterAsync(ClientKey, "default", "Alpha");
+        Assert.Equal(HttpStatusCode.Conflict, disabled.StatusCode);
+    }
+
+    [Fact]
     public async Task ResolveUnknownUserReturnsNotFoundWithoutProvisioningAsync()
     {
         await using ApiFactory factory = new();
@@ -588,6 +623,9 @@ public sealed class UserManagementApiTests
     private sealed class ApiFactory : WebApplicationFactory<UserManagement.Service.UserManagementServiceMarker>
     {
         private readonly SqliteConnection _connection = new("Data Source=:memory:");
+        private readonly bool _useRealActorProvider;
+
+        public ApiFactory(bool useRealActorProvider = false) => _useRealActorProvider = useRealActorProvider;
 
         protected override void ConfigureClient(HttpClient client)
         {
@@ -625,6 +663,7 @@ public sealed class UserManagementApiTests
             builder.UseSetting("ConnectionStrings:UserManagement", "Server=localhost;Database=unused;Trusted_Connection=True");
             builder.UseSetting("UserManagementKeys:Clients:0:ClientId", "sample-api");
             builder.UseSetting("UserManagementKeys:Clients:0:Key", ClientKey);
+            builder.UseSetting("UserManagementKeys:Clients:0:CanRegisterUnitOrganizations", "true");
             builder.UseSetting("UserManagementKeys:Administrators:0:ActorId", "operator");
             builder.UseSetting("UserManagementKeys:Administrators:0:Key", AdminKey);
             builder.UseSetting("UserManagementKeys:AdminLookupKey", new string('l', 40));
@@ -638,7 +677,8 @@ public sealed class UserManagementApiTests
                 services.RemoveAll<DbContextOptions<UserManagementDbContext>>();
                 services.RemoveAll<IDbContextOptionsConfiguration<UserManagementDbContext>>();
                 services.RemoveAll<UserManagementDbContext>();
-                services.AddSingleton<Common.Persistence.ICurrentActorProvider>(TestActorProvider.Instance);
+                if (!_useRealActorProvider)
+                    services.AddSingleton<Common.Persistence.ICurrentActorProvider>(TestActorProvider.Instance);
                 services.AddDbContext<UserManagementDbContext>(options => options.UseSqlite(_connection));
             });
         }

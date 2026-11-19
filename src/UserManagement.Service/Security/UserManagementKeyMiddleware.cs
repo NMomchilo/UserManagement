@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using AdminManagement.Security;
 using System.Text;
 using Microsoft.Extensions.Options;
 
@@ -23,8 +24,12 @@ public sealed class UserManagementKeyMiddleware(RequestDelegate next,
             (HttpMethods.IsGet(context.Request.Method) && context.Request.Path == "/v1/users/revision");
         bool lookup = HttpMethods.IsGet(context.Request.Method) &&
             context.Request.Path == "/v1/admin/access";
+        bool registration = HttpMethods.IsPost(context.Request.Method) &&
+            context.Request.Path == "/v1/registrations/unit-organizations";
         string provided = context.Request.Headers[HeaderName].ToString();
-        string? actor = resolution
+        ServiceCredential? registrationClient = registration
+            ? options.Value.Clients.FirstOrDefault(value => KeysEqual(provided, value.Key)) : null;
+        string? actor = registration ? registrationClient?.ClientId : resolution
             ? options.Value.Clients.FirstOrDefault(value => KeysEqual(provided, value.Key))?.ClientId
             : lookup
                 ? KeysEqual(provided, options.Value.AdminLookupKey) ? "access-control" : null
@@ -37,7 +42,17 @@ public sealed class UserManagementKeyMiddleware(RequestDelegate next,
             return;
         }
 
-        if (!resolution && (context.User.Identity?.IsAuthenticated != true ||
+        if (registration)
+        {
+            if (registrationClient is not { CanRegisterUnitOrganizations: true })
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return;
+            }
+            context.Items[nameof(ServiceCredential)] = registrationClient;
+            context.User = RegistrationClientIdentity.Create(registrationClient.ClientId);
+        }
+        if (!resolution && !registration && (context.User.Identity?.IsAuthenticated != true ||
             !Guid.TryParse(context.User.FindFirst("oid")?.Value ??
                 context.User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value,
                 out Guid objectId) || objectId == Guid.Empty))

@@ -1,9 +1,22 @@
 using UserManagement.Contracts;
+using Microsoft.Extensions.Logging;
 
 namespace UserManagement.Application;
 
 public sealed partial class UserManagementService
 {
+    public async Task<(UnitOrganizationInfo Organization, bool Created)> RegisterUnitOrganizationAsync(
+        CreateUnitOrganizationRequest request, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var (organization, created) = await store.RegisterUnitOrganizationAsync(
+            NormalizeTenant(request.TenantId), NormalizeOrganizationId(request.Id),
+            NormalizeOrganizationName(request.Name), cancellationToken);
+        logger.LogInformation("Startup organization registration {UnitOrganizationId}; created {Created}",
+            organization.Id, created);
+        return (Map(organization), created);
+    }
+
     public async Task<AdminAccessInfo> GetAdminAccessAsync(string tenantId, string actorOid,
         Guid? unitOrganizationId, CancellationToken cancellationToken)
     {

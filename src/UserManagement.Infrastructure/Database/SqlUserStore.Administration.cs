@@ -8,6 +8,45 @@ namespace UserManagement.Infrastructure.Database;
 
 public sealed partial class SqlUserStore
 {
+    public async Task<(ManagedUnitOrganization Organization, bool Created)> RegisterUnitOrganizationAsync(
+        string tenantId, Guid id, string name, CancellationToken cancellationToken)
+    {
+        UnitOrganizationEntity? existing = await db.UnitOrganizations.AsNoTracking()
+            .SingleOrDefaultAsync(value => value.Id == id, cancellationToken);
+        if (existing is not null)
+            return MatchExisting(existing, tenantId, name);
+        if (await db.UnitOrganizations.AnyAsync(value => value.TenantId == tenantId && value.Name == name &&
+                value.IsActive, cancellationToken))
+            throw new UnitOrganizationConflictException("Organization name already exists.");
+
+        UnitOrganizationEntity organization = new() { Id = id, TenantId = tenantId, Name = name };
+        db.UnitOrganizations.Add(organization);
+        try
+        {
+            await using var transaction = await BeginTransactionIfNeededAsync(cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+            await IncrementRevisionAsync(cancellationToken);
+            if (transaction is not null) await transaction.CommitAsync(cancellationToken);
+            return (Map(organization), true);
+        }
+        catch (DbUpdateException)
+        {
+            db.ChangeTracker.Clear();
+            existing = await db.UnitOrganizations.AsNoTracking()
+                .SingleOrDefaultAsync(value => value.Id == id, cancellationToken);
+            if (existing is not null) return MatchExisting(existing, tenantId, name);
+            throw new UnitOrganizationConflictException("Organization ID or name already exists.");
+        }
+    }
+
+    private static (ManagedUnitOrganization Organization, bool Created) MatchExisting(
+        UnitOrganizationEntity existing, string tenantId, string name)
+    {
+        if (!existing.IsActive || existing.TenantId != tenantId || existing.Name != name)
+            throw new UnitOrganizationConflictException("Organization exists with different data or is inactive.");
+        return (Map(existing), false);
+    }
+
     public async Task<AdminAccess> GetAdminAccessAsync(string tenantId, string objectId, CancellationToken cancellationToken)
     {
         UserEntity? user = await db.Users.AsNoTracking().SingleOrDefaultAsync(value =>

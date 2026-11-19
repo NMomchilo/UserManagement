@@ -5,6 +5,8 @@ namespace UserManagement.Application;
 public interface IUserStore
 {
     Task<AdminAccess> GetAdminAccessAsync(string tenantId, string objectId, CancellationToken cancellationToken);
+    Task<(ManagedUnitOrganization Organization, bool Created)> RegisterUnitOrganizationAsync(
+        string tenantId, Guid id, string name, CancellationToken cancellationToken);
     Task<bool> CreateUserAsync(string tenantId, string objectId, string displayName, string? email, CancellationToken cancellationToken);
     Task<bool> CreateUserInOrganizationAsync(string tenantId, Guid unitOrganizationId, string objectId,
         string displayName, string? email, CancellationToken cancellationToken, IReadOnlyList<Guid>? roleIds = null);

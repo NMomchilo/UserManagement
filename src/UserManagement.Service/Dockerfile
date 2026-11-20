@@ -12,16 +12,14 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["NuGet.config", "."]
+COPY ["NuGet.config", "./"]
 COPY ["src/UserManagement.Service/UserManagement.Service.csproj", "src/UserManagement.Service/"]
 COPY ["src/UserManagement.Application/UserManagement.Application.csproj", "src/UserManagement.Application/"]
-COPY ["src/UserManagement.Contracts/UserManagement.Contracts.csproj", "src/UserManagement.Contracts/"]
 COPY ["src/UserManagement.Domain/UserManagement.Domain.csproj", "src/UserManagement.Domain/"]
 COPY ["src/UserManagement.Infrastructure/UserManagement.Infrastructure.csproj", "src/UserManagement.Infrastructure/"]
-COPY ["src/AdminManagement.Security/AdminManagement.Security.csproj", "src/AdminManagement.Security/"]
-COPY ["src/Common.Persistence/Common.Persistence.csproj", "src/Common.Persistence/"]
-RUN dotnet restore "./src/UserManagement.Service/UserManagement.Service.csproj" --source https://api.nuget.org/v3/index.json
-COPY . .
+COPY .packages/*.nupkg .packages/
+RUN dotnet restore "./src/UserManagement.Service/UserManagement.Service.csproj"
+COPY src/ src/
 WORKDIR "/src/src/UserManagement.Service"
 RUN dotnet build "./UserManagement.Service.csproj" -c $BUILD_CONFIGURATION -o /app/build --no-restore
 

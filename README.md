@@ -1,6 +1,6 @@
 # User Management
 
-This .NET 10 repository contains the User Management API and the `UserManagement.Client` and `UserManagement.Contracts` NuGet packages. It owns tenant-scoped users identified by Entra `oid`, unit organizations (UOs), UO memberships, business roles with GUID IDs, role assignments, and SuperAdmin/UO Admin duties. The separate Access Control service owns policies, entitlements, and grants to those role IDs; User Management does not decide access to business endpoints.
+This .NET 10 repository contains the User Management API. The `UserManagement.Client` and `UserManagement.Contracts` NuGet source and package tests live in the separate Shared repository. This service owns tenant-scoped users identified by Entra `oid`, unit organizations (UOs), UO memberships, business roles with GUID IDs, role assignments, and SuperAdmin/UO Admin duties. The separate Access Control service owns policies, entitlements, and grants to those role IDs; User Management does not decide access to business endpoints.
 
 ## Request flow
 
@@ -26,6 +26,7 @@ Administrator reads include `isSuperAdmin` on the user and `isAdmin` on each mem
 Install the .NET 10 SDK and Docker. From this repository root, start the SQL Server defined in [docker-compose.yml](docker-compose.yml) and then the service:
 
 ```powershell
+# The six Shared 0.12.0 NuGet files are included in .packages.
 docker compose up -d sqlserver
 dotnet run --project src/UserManagement.Service --launch-profile http
 ```
@@ -40,10 +41,14 @@ Open `http://localhost:5220/swagger`. The local SQL Server is exposed on **1434*
 
 ## Use the NuGet packages
 
+The service, tests, and benchmarks use versioned `0.12.0` NuGet packages from Shared. This repository includes the six package files in `.packages`: `AccessControl.Client`, `AccessControl.Contracts`, `UserManagement.Client`, `UserManagement.Contracts`, `Common.Persistence`, and `AdminManagement.Security`. Their versions must match the project references. When Shared releases a new version, pack it, update the project references, and replace these package files. For example, after packing Shared in any location:
+
 ```powershell
-dotnet pack src/UserManagement.Contracts -c Release -o artifacts/packages
-dotnet pack src/UserManagement.Client -c Release -o artifacts/packages
+Copy-Item 'C:\path\to\Shared\packages\*.nupkg' .packages\
+dotnet restore UserManagement.sln
 ```
+
+`NuGet.config` maps these package IDs to `.packages`; no sibling checkout or package download is needed after cloning this repository with the package files committed. Once a private feed is chosen, replace that local source with the feed URL and supply its credentials through CI secrets; do not commit credentials.
 
 Install matching `UserManagement.Client` and `UserManagement.Contracts` versions (currently 0.12.0). Configure `UserManagement:ServiceUrl`, `ApiKey`, tenant settings, delegated scope, gateway identity/claim types, cache size/lifetime, and timeout. The consuming host validates the Entra JWT and gateway assertion; the NuGet does neither. An authenticated `Gateway` identity must carry `unit_organization_id` and `unit_organization_name` before `app.UseUserManagement()`. Do not derive it from untrusted headers.
 
@@ -60,11 +65,11 @@ app.UseAuthorization();
 app.MapControllers();
 ```
 
-The Access Control middleware must run after User Management to receive the resolved role IDs and duties. The Access Control repository's [CustomerApi sample](../ACNugServ/samples/CustomerApi/Program.cs) shows client registration and ordering, but it currently lacks gateway assertion validation and the `Gateway` identity; authenticated requests through it receive `403` until the host supplies that step. See the [API and client guide](docs/user-management-api.md) for configuration details.
+The Access Control middleware must run after User Management to receive the resolved role IDs and duties. The separate Access Control repository's CustomerApi sample shows client registration and ordering, but it currently lacks gateway assertion validation and the `Gateway` identity; authenticated requests through it receive `403` until the host supplies that step. See the [API and client guide](docs/user-management-api.md) for configuration details.
 
 ## Build and test
 
-Place this repository beside `ACNugServ` under the same parent directory. The middleware flow test references the sibling Access Control client source by default, so local tests do not require prepacked NuGets. To test the published-package path, first pack `AccessControl.Client` and `AccessControl.Contracts` 0.12.0 into the sibling repository's `artifacts/packages`, then run `dotnet test UserManagement.sln -c Release -p:UsePublishedClientPackages=true`. Coverage reports this repository's assemblies; it excludes the sibling Access Control source.
+Clone this repository anywhere; the committed `.packages` files are used during restore. Every project in this solution uses versioned package references for Shared code, including the middleware flow test and benchmarks. Package-only tests and coverage live in Shared; this repository retains API, persistence, and flow tests. Build the Docker image from this repository root with `docker build -f src/UserManagement.Service/Dockerfile -t user-management:local .`.
 
 ```powershell
 dotnet test UserManagement.sln -c Release
@@ -72,4 +77,4 @@ dotnet test tests/UserManagement.Tests -c Release --collect:"XPlat Code Coverage
 dotnet run --project benchmarks/UserManagement.Benchmarks -c Release -- --database sqlite --requests 5000 --concurrency 16
 ```
 
-The [benchmark guide](benchmarks/README.md) covers local SQLite, SQL Server, and live HTTP resolution; the [2026-11-20 Rancher Desktop results](docs/sqlserver-rancher-benchmarks-2026-11-20.md) record fresh live runs. The end-to-end JWT → User Management → Access Control → controller benchmark lives in the Access Control repository. Unit/in-process tests use SQLite; they do not replace SQL Server migration, revocation, and load checks in a dedicated staging environment. The `Common.Persistence` and `AdminManagement.Security` projects are local server-side support code.
+The [benchmark guide](benchmarks/README.md) covers local SQLite, SQL Server, and live HTTP resolution; the [2026-11-20 Rancher Desktop results](docs/sqlserver-rancher-benchmarks-2026-11-20.md) record fresh live runs. The end-to-end JWT → User Management → Access Control → controller benchmark lives in the Access Control repository. Unit/in-process tests use SQLite; they do not replace SQL Server migration, revocation, and load checks in a dedicated staging environment.

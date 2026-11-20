@@ -9,4 +9,6 @@ public static class UserManagementClaims
     public const string TenantId = "user_management_tenant_id";
     public const string UnitOrganizationId = "user_management_unit_organization_id";
     public const string UnitOrganizationName = "user_management_unit_organization_name";
+    public const string IsSuperAdmin = "user_management_is_super_admin";
+    public const string IsUnitAdmin = "user_management_is_unit_admin";
 }

@@ -192,7 +192,8 @@ public sealed partial class UserManagementService(IUserStore store, IOptions<Use
 
     private static UserIdentityResponse Map(ManagedUser user) => new(user.Id, user.TenantId,
         user.UnitOrganizationId, user.UnitOrganizationName, user.IsActive,
-        user.Roles.Select(role => new UserRoleInfo(role.Id, role.Code, role.DisplayName)).ToArray());
+        user.Roles.Select(role => new UserRoleInfo(role.Id, role.Code, role.DisplayName)).ToArray(),
+        user.IsSuperAdmin, user.IsUnitAdmin);
 
     private static UserSummary MapSummary(ManagedUserSummary user) =>
         new(user.Id, user.ObjectId, user.DisplayName, user.Email, user.IsActive, user.IsSuperAdmin,

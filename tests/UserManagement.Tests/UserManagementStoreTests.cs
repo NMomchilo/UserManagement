@@ -55,6 +55,65 @@ public sealed class UserManagementStoreTests
     }
 
     [Fact]
+    public async Task ActiveSuperAdminResolvesActiveOrganizationWithoutMembershipAsync()
+    {
+        await using SqliteConnection connection = new("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using UserManagementDbContext db = CreateDb(connection);
+        await db.Database.EnsureCreatedAsync();
+        UserManagementService service = CreateService(db);
+        await service.CreateUnitOrganizationAsync(new(OrganizationId, "default", "Alpha"), default);
+        Assert.True(await service.CreateUserAsync("default", Oid, "SuperAdmin", null, default));
+        Assert.True(await service.SetSuperAdminAsync("default", Oid, true, default));
+
+        UserIdentityResponse resolved = await service.ResolveAsync(
+            new UserIdentityRequest("default", OrganizationId, Oid), default);
+
+        Assert.True(resolved.IsActive);
+        Assert.Empty(resolved.Roles);
+        Assert.Equal(OrganizationId, resolved.UnitOrganizationId);
+        Assert.Empty(await db.UnitOrganizationMemberships.ToListAsync());
+    }
+
+    [Fact]
+    public async Task UnitAdminDutyIsLimitedToAssignedActiveOrganizationAsync()
+    {
+        await using SqliteConnection connection = new("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using UserManagementDbContext db = CreateDb(connection);
+        await db.Database.EnsureCreatedAsync();
+        UserManagementService service = CreateService(db);
+        await ProvisionAsync(service, db, "default", OrganizationId, "Alpha", Oid);
+        await ProvisionAsync(service, db, "default", OtherOrganizationId, "Beta", Oid);
+        Assert.True(await service.SetUnitAdminAsync("default", OrganizationId, Oid, true, default));
+
+        UserIdentityResponse assigned = await service.ResolveAsync(new("default", OrganizationId, Oid), default);
+        UserIdentityResponse other = await service.ResolveAsync(new("default", OtherOrganizationId, Oid), default);
+
+        Assert.True(assigned.IsUnitAdmin);
+        Assert.False(other.IsUnitAdmin);
+        Assert.False(assigned.IsSuperAdmin);
+        Assert.False(other.IsSuperAdmin);
+    }
+
+    [Fact]
+    public async Task SuperAdminCannotResolveInactiveOrganizationAsync()
+    {
+        await using SqliteConnection connection = new("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using UserManagementDbContext db = CreateDb(connection);
+        await db.Database.EnsureCreatedAsync();
+        UserManagementService service = CreateService(db);
+        await service.CreateUnitOrganizationAsync(new(OrganizationId, "default", "Alpha"), default);
+        Assert.True(await service.CreateUserAsync("default", Oid, "SuperAdmin", null, default));
+        Assert.True(await service.SetSuperAdminAsync("default", Oid, true, default));
+        Assert.True(await service.DeleteUnitOrganizationAsync("default", OrganizationId, default));
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.ResolveAsync(
+            new UserIdentityRequest("default", OrganizationId, Oid), default));
+    }
+
+    [Fact]
     public async Task AdminReads_ShowScopedAssignmentsAndFindEmailWithoutProvisioningAsync()
     {
         await using SqliteConnection connection = new("Data Source=:memory:");

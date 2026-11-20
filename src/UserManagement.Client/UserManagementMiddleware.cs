@@ -120,6 +120,8 @@ public sealed class UserManagementMiddleware(RequestDelegate next, IUserManageme
         identity.AddClaim(new Claim(UserManagementClaims.TenantId, resolved.TenantId));
         identity.AddClaim(new Claim(UserManagementClaims.UnitOrganizationId, resolved.UnitOrganizationId.ToString("D")));
         identity.AddClaim(new Claim(UserManagementClaims.UnitOrganizationName, resolved.UnitOrganizationName));
+        identity.AddClaim(new Claim(UserManagementClaims.IsSuperAdmin, resolved.IsSuperAdmin ? "true" : "false"));
+        identity.AddClaim(new Claim(UserManagementClaims.IsUnitAdmin, resolved.IsUnitAdmin ? "true" : "false"));
         foreach (UserRoleInfo role in resolved.Roles)
         {
             identity.AddClaim(new Claim(UserManagementClaims.RoleId, role.RoleId.ToString("D")));

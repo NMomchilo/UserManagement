@@ -148,7 +148,7 @@ public sealed class UserManagementApiTests
     }
 
     [Fact]
-    public async Task AdministratorGetUserShowsDutiesWhileResolutionContractStaysUnchangedAsync()
+    public async Task AdministratorDutiesAreIncludedInResolutionAsync()
     {
         await using ApiFactory factory = new();
         using HttpClient client = factory.CreateClient();
@@ -176,8 +176,8 @@ public sealed class UserManagementApiTests
         using HttpResponseMessage resolved = await SendClientAsync(client, HttpMethod.Post, "/v1/users/resolve",
             new UserIdentityRequest("default", OrganizationId, Oid));
         string resolutionJson = await resolved.Content.ReadAsStringAsync();
-        Assert.DoesNotContain("isSuperAdmin", resolutionJson);
-        Assert.DoesNotContain("isAdmin", resolutionJson);
+        Assert.Contains("\"isSuperAdmin\":true", resolutionJson);
+        Assert.Contains("\"isUnitAdmin\":true", resolutionJson);
     }
 
     [Fact]

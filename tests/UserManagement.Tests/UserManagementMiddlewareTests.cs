@@ -52,6 +52,22 @@ public sealed class UserManagementMiddlewareTests
     }
 
     [Fact]
+    public async Task InvokeAsync_AddsResolvedAdministrativeDutiesToManagedIdentityAsync()
+    {
+        UserManagementMiddleware middleware = Create(new AdministrativeClient());
+        DefaultHttpContext context = AuthenticatedContext(new Claim("oid", Oid));
+
+        await middleware.InvokeAsync(context);
+
+        ClaimsIdentity managed = context.User.Identities.Single(identity =>
+            identity.AuthenticationType == UserManagementClaims.IdentityAuthenticationType);
+        Assert.Contains(managed.Claims, claim => claim.Type == UserManagementClaims.IsSuperAdmin &&
+            claim.Value == "true");
+        Assert.Contains(managed.Claims, claim => claim.Type == UserManagementClaims.IsUnitAdmin &&
+            claim.Value == "true");
+    }
+
+    [Fact]
     public async Task InvokeAsync_MappedOid_ResolvesUserAsync()
     {
         CapturingClient client = new();
@@ -248,6 +264,13 @@ public sealed class UserManagementMiddlewareTests
                 request.UnitOrganizationId, "Alpha", active,
                 [new UserRoleInfo(Reader, "reader", "Reader")]));
         }
+    }
+
+    private sealed class AdministrativeClient : IUserManagementClient
+    {
+        public Task<UserIdentityResponse> ResolveAsync(UserIdentityRequest request, CancellationToken cancellationToken) =>
+            Task.FromResult(new UserIdentityResponse(Guid.NewGuid(), request.TenantId,
+                request.UnitOrganizationId, "Alpha", true, [], IsSuperAdmin: true, IsUnitAdmin: true));
     }
 
     private sealed class FailingClient : IUserManagementClient

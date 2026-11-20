@@ -113,8 +113,8 @@
         "tags": [
           "Client"
         ],
-        "summary": "Resolve an existing user and UO membership",
-        "description": "Read an existing user and active UO membership by validated oid, tenant, and gateway-authenticated UO ID. This request never creates a UO, user, membership, or role. Unknown UOs, users, or memberships return 404.",
+        "summary": "Resolve an existing user and organization access",
+        "description": "Read an existing user and active UO by validated oid, tenant, and gateway-authenticated UO ID. An ordinary user or UO Admin needs an active membership; an active SuperAdmin can resolve any active UO in the same tenant without one. Returns role IDs and current administrative duties. This request never creates a UO, user, membership, or role.",
         "operationId": "resolveUser",
         "security": [
           {
@@ -148,6 +148,8 @@
                   "userId": "70f515ab-3c8d-42ab-92a3-3a06f1f9d938",
                   "tenantId": "default",
                   "isActive": true,
+                  "isSuperAdmin": false,
+                  "isUnitAdmin": false,
                   "roles": [],
                   "unitOrganizationId": "33333333-3333-3333-3333-333333333333",
                   "unitOrganizationName": "Customer Operations"
@@ -165,7 +167,7 @@
             "$ref": "#/components/responses/ServiceError"
           },
           "404": {
-            "description": "UO, user, or active membership does not exist"
+            "description": "UO or user does not exist, or an ordinary user lacks active membership"
           }
         }
       }
@@ -1869,6 +1871,8 @@
           "userId",
           "tenantId",
           "isActive",
+          "isSuperAdmin",
+          "isUnitAdmin",
           "roles",
           "unitOrganizationId",
           "unitOrganizationName"
@@ -1881,6 +1885,14 @@
           },
           "isActive": {
             "type": "boolean"
+          },
+          "isSuperAdmin": {
+            "type": "boolean",
+            "description": "Tenant-wide SuperAdmin duty on an active user; applies to every active UO in this application tenant."
+          },
+          "isUnitAdmin": {
+            "type": "boolean",
+            "description": "Admin duty on an active membership in the requested UO."
           },
           "roles": {
             "type": "array",

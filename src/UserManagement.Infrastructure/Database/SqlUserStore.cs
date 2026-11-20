@@ -17,7 +17,8 @@ public sealed partial class SqlUserStore(UserManagementDbContext db, ILogger<Sql
             .Include(value => value.Roles.Where(role => role.UnitOrganizationId == unitOrganizationId))
             .ThenInclude(value => value.Role)
             .SingleOrDefaultAsync(value => value.TenantId == tenantId && value.ObjectId == objectId, cancellationToken);
-        if (user is null || !user.Organizations.Any(value => value.UnitOrganizationId == unitOrganizationId && value.IsActive))
+        if (user is null || !user.IsSuperAdmin &&
+            !user.Organizations.Any(value => value.UnitOrganizationId == unitOrganizationId && value.IsActive))
             return null;
         UnitOrganizationEntity? organization = await db.UnitOrganizations.AsNoTracking()
             .SingleOrDefaultAsync(value => value.TenantId == tenantId && value.Id == unitOrganizationId &&
@@ -336,14 +337,18 @@ public sealed partial class SqlUserStore(UserManagementDbContext db, ILogger<Sql
         }
     }
 
-    private static ManagedUser Map(UserEntity user, UnitOrganizationEntity organization) =>
-        new(user.Id, user.TenantId, organization.Id, organization.Name, user.ObjectId, user.Email,
-            user.DisplayName, user.IsActive  && user.Organizations.Any(membership =>
-                membership.UnitOrganizationId == organization.Id && membership.IsActive), user.CreatedAt,
+    private static ManagedUser Map(UserEntity user, UnitOrganizationEntity organization)
+    {
+        UnitOrganizationMembershipEntity? membership = user.Organizations.SingleOrDefault(value =>
+            value.UnitOrganizationId == organization.Id);
+        bool activeMembership = membership?.IsActive == true;
+        return new ManagedUser(user.Id, user.TenantId, organization.Id, organization.Name, user.ObjectId, user.Email,
+            user.DisplayName, user.IsActive && (activeMembership || user.IsSuperAdmin), user.CreatedAt,
             user.Roles.Where(value => value.UnitOrganizationId == organization.Id && value.Role.IsActive &&
-                user.Organizations.Any(membership =>
-                    membership.UnitOrganizationId == organization.Id && membership.IsActive))
-                .Select(value => Map(value.Role)).OrderBy(value => value.Code, StringComparer.Ordinal).ToArray());
+                activeMembership)
+                .Select(value => Map(value.Role)).OrderBy(value => value.Code, StringComparer.Ordinal).ToArray(),
+            user.IsSuperAdmin, activeMembership && membership!.IsAdmin);
+    }
 
     private static ManagedRole Map(RoleEntity role) =>
         new(role.Id, role.TenantId, role.UnitOrganizationId, role.Code, role.DisplayName, role.IsActive);

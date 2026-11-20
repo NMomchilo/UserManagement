@@ -1,6 +1,6 @@
 # User Management benchmark
 
-New direct SQL Server and live HTTP measurements are in [the 2026-11-18 report](../docs/sqlserver-benchmarks-2026-11-18.md).
+Fresh direct SQL Server, live HTTP, and warm-cache measurements are in [the 2026-11-20 Rancher Desktop report](../docs/sqlserver-rancher-benchmarks-2026-11-20.md), with links to every raw run. [The 2026-11-18 report](../docs/sqlserver-benchmarks-2026-11-18.md) is historical.
 
 The harness in `UserManagement.Benchmarks` compares direct user resolution with bounded client-cache hits. Its direct store adapter returns the same active status, role IDs, and SuperAdmin/unit Admin duties as `/v1/users/resolve`. It does not run JWT validation or either consuming API middleware. Run from this repository root:
 

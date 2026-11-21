@@ -97,12 +97,11 @@ public sealed partial class UserManagementService(IUserStore store, IOptions<Use
         ArgumentNullException.ThrowIfNull(request);
         string tenantId = NormalizeTenant(request.TenantId);
         Guid organizationId = NormalizeOrganizationId(request.UnitOrganizationId);
-        string code = NormalizeRequired(request.Code, options.Value.MaximumRoleLength, nameof(request.Code));
         string displayName = NormalizeOptional(request.DisplayName, options.Value.MaximumDisplayNameLength,
             nameof(request.DisplayName)) ?? throw new ArgumentException("Display name is required.", nameof(request));
-        ManagedRole role = await store.CreateRoleAsync(tenantId, organizationId, code, displayName, cancellationToken);
+        ManagedRole role = await store.CreateRoleAsync(tenantId, organizationId, displayName, cancellationToken);
         logger.LogInformation("Created role {RoleId} in tenant {TenantId}", role.Id, tenantId);
-        return new RoleInfo(role.Id, role.TenantId, role.UnitOrganizationId, role.Code, role.DisplayName, role.IsActive);
+        return new RoleInfo(role.Id, role.TenantId, role.UnitOrganizationId, role.DisplayName, role.IsActive);
     }
 
     public async Task<bool> SetRoleActiveAsync(string tenantId, Guid unitOrganizationId, Guid roleId,
@@ -129,7 +128,7 @@ public sealed partial class UserManagementService(IUserStore store, IOptions<Use
         logger.LogDebug("Listed roles in tenant {TenantId}, organization {UnitOrganizationId}; page {Page}, count {Count}",
             normalizedTenant, unitOrganizationId, page, slice.Items.Count);
         return new PagedResult<RoleInfo>(slice.Items.Select(role => new RoleInfo(role.Id, role.TenantId,
-            role.UnitOrganizationId, role.Code, role.DisplayName, role.IsActive)).ToArray(), slice.TotalCount, page, pageSize);
+            role.UnitOrganizationId, role.DisplayName, role.IsActive)).ToArray(), slice.TotalCount, page, pageSize);
     }
 
     public async Task<RoleInfo?> GetRoleAsync(string tenantId, Guid unitOrganizationId, Guid roleId,
@@ -139,7 +138,7 @@ public sealed partial class UserManagementService(IUserStore store, IOptions<Use
         ManagedRole? role = await store.GetRoleAsync(NormalizeTenant(tenantId),
             NormalizeOrganizationId(unitOrganizationId), roleId, cancellationToken);
         return role is null ? null : new RoleInfo(role.Id, role.TenantId, role.UnitOrganizationId,
-            role.Code, role.DisplayName, role.IsActive);
+            role.DisplayName, role.IsActive);
     }
 
     public async Task<UnitOrganizationInfo> CreateUnitOrganizationAsync(CreateUnitOrganizationRequest request,
@@ -192,14 +191,14 @@ public sealed partial class UserManagementService(IUserStore store, IOptions<Use
 
     private static UserIdentityResponse Map(ManagedUser user) => new(user.Id, user.TenantId,
         user.UnitOrganizationId, user.UnitOrganizationName, user.IsActive,
-        user.Roles.Select(role => new UserRoleInfo(role.Id, role.Code, role.DisplayName)).ToArray(),
+        user.Roles.Select(role => new UserRoleInfo(role.Id, role.DisplayName)).ToArray(),
         user.IsSuperAdmin, user.IsUnitAdmin);
 
     private static UserSummary MapSummary(ManagedUserSummary user) =>
         new(user.Id, user.ObjectId, user.DisplayName, user.Email, user.IsActive, user.IsSuperAdmin,
             user.Memberships.Select(membership => new UserMembershipSummary(membership.UnitOrganizationId,
                 membership.UnitOrganizationName, membership.IsAdmin,
-                membership.Roles.Select(role => new UserRoleAssignmentInfo(role.Id, role.Code,
+                membership.Roles.Select(role => new UserRoleAssignmentInfo(role.Id,
                     role.DisplayName, role.IsActive)).ToArray())).ToArray());
 
     private static UnitOrganizationInfo Map(ManagedUnitOrganization organization) =>

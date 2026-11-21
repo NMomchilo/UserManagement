@@ -6,7 +6,7 @@ This .NET 10 repository contains the User Management API. The `UserManagement.Cl
 
 1. The consuming API authenticates the Entra JWT and a trusted gateway assertion. The gateway identity supplies the UO ID and name; the token supplies the user's `oid`. The application tenant defaults to `default` when its configured tenant claim is absent. Entra `tid` is a different value.
 2. For an authenticated delegated user, `UserManagement.Client` checks `oid`, the required `scp` scope, and the authenticated `Gateway` identity. It calls `POST /v1/users/resolve` with tenant, UO ID, and `oid`, or uses its bounded cache. Resolution reads existing records; it never creates a user, membership, UO, or role.
-3. The response contains active status, UO, role IDs/codes, `isSuperAdmin`, and `isUnitAdmin` for the selected UO. The client adds them to a dedicated identity in `HttpContext.User` for this request. It does not modify or reissue the JWT.
+3. The response contains active status, UO, role IDs, `isSuperAdmin`, and `isUnitAdmin` for the selected UO. The client adds them to a dedicated identity in `HttpContext.User` for this request. It does not modify or reissue the JWT.
 4. If Access Control is installed, its middleware forwards the UO, role IDs, and duties with the endpoint decision. The controller runs only after Permit. Ordinary decision calls do not make Access Control query User Management for roles.
 
 Anonymous requests pass through this middleware and may reach a public Access Control policy. An authenticated request without a valid `oid`, delegated scope, authenticated gateway UO, provisioned user, or active status is stopped before Access Control. An ordinary user or UO Admin needs an active membership in that UO. An active SuperAdmin can resolve any active UO in the same application tenant without membership or a business role. A request to an unknown UO does not create it. The client maps a missing user or membership to `403`, and a service outage to `503`.
@@ -26,7 +26,7 @@ Administrator reads include `isSuperAdmin` on the user and `isAdmin` on each mem
 Install the .NET 10 SDK and Docker. From this repository root, start the SQL Server defined in [docker-compose.yml](docker-compose.yml) and then the service:
 
 ```powershell
-# The six Shared 0.12.0 NuGet files are included in .packages.
+# The six Shared 0.13.0 NuGet files are included in .packages.
 docker compose up -d sqlserver
 dotnet run --project src/UserManagement.Service --launch-profile http
 ```
@@ -37,11 +37,11 @@ Open `http://localhost:5220/swagger`. The local SQL Server is exposed on **1434*
 
 `UserManagementKeys:Clients` keys authorize user resolution and revision polling; a client with `CanRegisterUnitOrganizations` can also register a UO. `UserManagementKeys:Administrators` keys are separate and accompany a validated Entra administrator token on management calls. `UserManagementKeys:AdminLookupKey` is reserved for Access Control's `GET /v1/admin/access` lookup, which also forwards that administrator token. These credentials must be distinct and at least 32 characters long.
 
-`POST /v1/registrations/unit-organizations` uses an existing `UserManagementKeys:Clients` key when `CanRegisterUnitOrganizations` is enabled. A registration-enabled client may supply any tenant and UO; its configured `ClientId` identifies the write actor. It creates a missing UO or confirms an identical active one. A different name or inactive UO returns `409`. It does not create users, memberships, roles, or duties. A consuming API can then register its module and endpoint catalog with Access Control. The local Development client key is configured to allow this startup operation.
+`POST /v1/registrations/unit-organizations` uses an existing `UserManagementKeys:Clients` key when `CanRegisterUnitOrganizations` is enabled. A registration-enabled client may supply any tenant and UO; its configured `ClientId` identifies the write actor. It creates a missing UO or confirms an identical active one. A different name or inactive UO returns `409`. It does not create users, memberships, roles, or duties. A consuming API can then register its endpoint catalog with Access Control. The local Development client key is configured to allow this startup operation.
 
 ## Use the NuGet packages
 
-The service, tests, and benchmarks use versioned `0.12.0` NuGet packages from Shared. This repository includes the six package files in `.packages`: `AccessControl.Client`, `AccessControl.Contracts`, `UserManagement.Client`, `UserManagement.Contracts`, `Common.Persistence`, and `AdminManagement.Security`. Their versions must match the project references. When Shared releases a new version, pack it, update the project references, and replace these package files. For example, after packing Shared in any location:
+The service, tests, and benchmarks use versioned `0.13.0` NuGet packages from Shared. This repository includes the six package files in `.packages`: `AccessControl.Client`, `AccessControl.Contracts`, `UserManagement.Client`, `UserManagement.Contracts`, `Common.Persistence`, and `AdminManagement.Security`. Their versions must match the project references. When Shared releases a new version, pack it, update the project references, and replace these package files. For example, after packing Shared in any location:
 
 ```powershell
 Copy-Item 'C:\path\to\Shared\packages\*.nupkg' .packages\
@@ -50,7 +50,7 @@ dotnet restore UserManagement.sln
 
 `NuGet.config` maps these package IDs to `.packages`; no sibling checkout or package download is needed after cloning this repository with the package files committed. Once a private feed is chosen, replace that local source with the feed URL and supply its credentials through CI secrets; do not commit credentials.
 
-Install matching `UserManagement.Client` and `UserManagement.Contracts` versions (currently 0.12.0). Configure `UserManagement:ServiceUrl`, `ApiKey`, tenant settings, delegated scope, gateway identity/claim types, cache size/lifetime, and timeout. The consuming host validates the Entra JWT and gateway assertion; the NuGet does neither. An authenticated `Gateway` identity must carry `unit_organization_id` and `unit_organization_name` before `app.UseUserManagement()`. Do not derive it from untrusted headers.
+Install matching `UserManagement.Client` and `UserManagement.Contracts` versions (currently 0.13.0). Configure `UserManagement:ServiceUrl`, `ApiKey`, tenant settings, delegated scope, gateway identity/claim types, cache size/lifetime, and timeout. The consuming host validates the Entra JWT and gateway assertion; the NuGet does neither. An authenticated `Gateway` identity must carry `unit_organization_id` and `unit_organization_name` before `app.UseUserManagement()`. Do not derive it from untrusted headers.
 
 ```csharp
 builder.Services.AddUserManagement(builder.Configuration);

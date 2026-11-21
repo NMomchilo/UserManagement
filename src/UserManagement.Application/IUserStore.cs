@@ -24,7 +24,7 @@ public interface IUserStore
     Task<bool> ReplaceRolesAsync(string tenantId, Guid unitOrganizationId, string objectId,
         IReadOnlyList<Guid> roleIds, CancellationToken cancellationToken);
     Task<bool> SetActiveAsync(string tenantId, string objectId, bool isActive, CancellationToken cancellationToken);
-    Task<ManagedRole> CreateRoleAsync(string tenantId, Guid unitOrganizationId, string code, string displayName, CancellationToken cancellationToken);
+    Task<ManagedRole> CreateRoleAsync(string tenantId, Guid unitOrganizationId, string displayName, CancellationToken cancellationToken);
     Task<bool> SetRoleActiveAsync(string tenantId, Guid unitOrganizationId, Guid roleId, bool isActive, CancellationToken cancellationToken);
     Task<PageSlice<ManagedRole>> GetRolesPageAsync(string tenantId, Guid? unitOrganizationId,
         int offset, int pageSize, CancellationToken cancellationToken);

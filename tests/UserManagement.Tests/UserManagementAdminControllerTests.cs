@@ -191,12 +191,12 @@ public sealed class UserManagementAdminControllerTests
         SetActor(roles, AdminOid);
 
         var created = Assert.IsType<CreatedResult>(await roles.CreateAsync(
-            new CreateRoleRequest("tenant", Alpha, "editor", "Editor"), default));
+            new CreateRoleRequest("tenant", Alpha, "Editor"), default));
         var role = Assert.IsType<RoleInfo>(created.Value);
         Assert.IsType<OkObjectResult>(await roles.UpdateAsync(role.RoleId, "tenant", Alpha,
             new UpdateRoleRequest("Senior Editor"), default));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => roles.CreateAsync(
-            new CreateRoleRequest("tenant", Beta, "editor", "Editor"), default));
+            new CreateRoleRequest("tenant", Beta, "Editor"), default));
         Assert.IsType<NoContentResult>(await roles.SetActiveAsync(role.RoleId, "tenant", Alpha, new(false), default));
         var users = new UsersController(fixture.Service, fixture.Authorizer, NullLogger<UsersController>.Instance);
         SetActor(users, AdminOid);

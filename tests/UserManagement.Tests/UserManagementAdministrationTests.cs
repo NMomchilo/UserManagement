@@ -77,7 +77,7 @@ public sealed class UserManagementAdministrationTests
         await service.CreateUserAsync("tenant", MemberOid, "Member", null, default);
         await service.AssignMembershipAsync("tenant", Alpha, MemberOid, default);
         await service.AssignMembershipAsync("tenant", Beta, MemberOid, default);
-        var privileged = await service.CreateRoleAsync(new("tenant", Alpha, "approver", "Approver"), default);
+        var privileged = await service.CreateRoleAsync(new("tenant", Alpha, "Approver"), default);
         await service.ReplaceRolesAsync("tenant", Alpha, MemberOid, new([privileged.RoleId]), default);
 
         Assert.True(await service.RevokeMembershipAsync("tenant", Alpha, MemberOid, default));
@@ -102,7 +102,7 @@ public sealed class UserManagementAdministrationTests
         await service.CreateUnitOrganizationAsync(new(Alpha, "tenant", "Alpha"), default);
         await service.CreateUserAsync("tenant", MemberOid, "Member", null, default);
         await service.AssignMembershipAsync("tenant", Alpha, MemberOid, default);
-        var role = await service.CreateRoleAsync(new("tenant", Alpha, "editor", "Editor"), default);
+        var role = await service.CreateRoleAsync(new("tenant", Alpha, "Editor"), default);
         await service.ReplaceRolesAsync("tenant", Alpha, MemberOid, new([role.RoleId]), default);
         Assert.True(await service.SetRoleActiveAsync("tenant", Alpha, role.RoleId, new(false), default));
         Assert.Empty((await service.GetAsync("tenant", Alpha, MemberOid, default))!.Roles);
@@ -139,7 +139,7 @@ public sealed class UserManagementAdministrationTests
         await db.Database.EnsureCreatedAsync();
         var service = CreateService(db);
         await service.CreateUnitOrganizationAsync(new(Alpha, "tenant", "Alpha"), default);
-        var role = await service.CreateRoleAsync(new("tenant", Alpha, "editor", "Editor"), default);
+        var role = await service.CreateRoleAsync(new("tenant", Alpha, "Editor"), default);
         var updated = await service.UpdateRoleAsync("tenant", Alpha, role.RoleId, "Senior Editor", default);
         Assert.Equal("Senior Editor", updated?.DisplayName);
         Assert.True(await service.SetRoleActiveAsync("tenant", Alpha, role.RoleId, new(false), default));

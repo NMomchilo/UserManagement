@@ -115,10 +115,8 @@ public sealed class UserManagementDbContext(DbContextOptions<UserManagementDbCon
             entity.HasKey(role => role.Id);
             entity.HasAlternateKey(role => new { role.TenantId, role.UnitOrganizationId, role.Id });
             entity.Property(role => role.TenantId).HasMaxLength(128).IsRequired();
-            entity.Property(role => role.Code).HasMaxLength(64).IsRequired();
             entity.Property(role => role.DisplayName).HasMaxLength(200).IsRequired();
             entity.Property(role => role.IsActive).IsRequired();
-            entity.HasIndex(role => new { role.TenantId, role.UnitOrganizationId, role.Code }).IsUnique();
             entity.HasOne(role => role.UnitOrganization).WithMany(organization => organization.Roles)
                 .HasForeignKey(role => new { role.TenantId, role.UnitOrganizationId })
                 .HasPrincipalKey(organization => new { organization.TenantId, organization.Id })

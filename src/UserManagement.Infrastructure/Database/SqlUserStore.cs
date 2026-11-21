@@ -62,7 +62,7 @@ public sealed partial class SqlUserStore(UserManagementDbContext db, ILogger<Sql
                 assignment.Membership.IsActive &&
                 (!unitOrganizationId.HasValue || assignment.UnitOrganizationId == unitOrganizationId.Value))
             .Select(assignment => new { assignment.UserId, assignment.UnitOrganizationId,
-                assignment.RoleId, assignment.Role.Code, assignment.Role.DisplayName, assignment.Role.IsActive })
+                assignment.RoleId, assignment.Role.DisplayName, assignment.Role.IsActive })
             .ToArrayAsync(cancellationToken);
         var rolesByMembership = assignments.ToLookup(assignment => (assignment.UserId, assignment.UnitOrganizationId));
         var membershipsByUser = memberships.ToLookup(membership => membership.UserId);
@@ -72,9 +72,9 @@ public sealed partial class SqlUserStore(UserManagementDbContext db, ILogger<Sql
                 .Select(membership => new ManagedUserMembershipSummary(membership.UnitOrganizationId,
                     membership.OrganizationName, membership.IsAdmin,
                     rolesByMembership[(user.Id, membership.UnitOrganizationId)]
-                        .OrderBy(assignment => assignment.Code).ThenBy(assignment => assignment.RoleId)
+                        .OrderBy(assignment => assignment.DisplayName).ThenBy(assignment => assignment.RoleId)
                         .Select(assignment => new ManagedRole(assignment.RoleId, tenantId,
-                            membership.UnitOrganizationId, assignment.Code, assignment.DisplayName,
+                            membership.UnitOrganizationId, assignment.DisplayName,
                             assignment.IsActive)).ToArray())).ToArray())).ToArray();
         return new PageSlice<ManagedUserSummary>(items, totalCount);
     }
@@ -85,7 +85,7 @@ public sealed partial class SqlUserStore(UserManagementDbContext db, ILogger<Sql
                 role.UnitOrganizationId == unitOrganizationId && role.Id == roleId &&
                 role.UnitOrganization.IsActive)
             .Select(role => new ManagedRole(role.Id, role.TenantId, role.UnitOrganizationId,
-                role.Code, role.DisplayName, role.IsActive))
+                role.DisplayName, role.IsActive))
             .SingleOrDefaultAsync(cancellationToken);
 
     public async Task<bool> ReplaceRolesAsync(string tenantId, Guid unitOrganizationId, string objectId,
@@ -160,38 +160,19 @@ public sealed partial class SqlUserStore(UserManagementDbContext db, ILogger<Sql
         return true;
     }
 
-    public async Task<ManagedRole> CreateRoleAsync(string tenantId, Guid unitOrganizationId, string code, string displayName,
+    public async Task<ManagedRole> CreateRoleAsync(string tenantId, Guid unitOrganizationId, string displayName,
         CancellationToken cancellationToken)
     {
         if (!await db.UnitOrganizations.AnyAsync(value => value.TenantId == tenantId &&
                 value.Id == unitOrganizationId && value.IsActive, cancellationToken))
             throw new ArgumentException("Unit organization does not exist in this tenant.", nameof(unitOrganizationId));
-        if (await db.Roles.AnyAsync(value => value.TenantId == tenantId &&
-            value.UnitOrganizationId == unitOrganizationId && value.Code == code, cancellationToken))
-        {
-            throw new ArgumentException("Role code already exists in this organization.", nameof(code));
-        }
-
         RoleEntity role = new()
         {
             Id = Guid.NewGuid(), TenantId = tenantId, UnitOrganizationId = unitOrganizationId,
-            Code = code, DisplayName = displayName
+            DisplayName = displayName
         };
         db.Roles.Add(role);
-        try
-        {
-            await db.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException)
-        {
-            db.ChangeTracker.Clear();
-            if (await db.Roles.AnyAsync(value => value.TenantId == tenantId &&
-                    value.UnitOrganizationId == unitOrganizationId && value.Code == code, cancellationToken))
-            {
-                throw new ArgumentException("Role code already exists in this organization.", nameof(code));
-            }
-            throw;
-        }
+        await db.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Created role {RoleId} in organization {UnitOrganizationId}", role.Id, unitOrganizationId);
         return Map(role);
     }
@@ -226,9 +207,9 @@ public sealed partial class SqlUserStore(UserManagementDbContext db, ILogger<Sql
         }
         int totalCount = await query.CountAsync(cancellationToken);
         ManagedRole[] items = await query.OrderBy(role => role.UnitOrganizationId)
-            .ThenBy(role => role.Code).ThenBy(role => role.Id).Skip(offset).Take(pageSize)
+            .ThenBy(role => role.DisplayName).ThenBy(role => role.Id).Skip(offset).Take(pageSize)
             .Select(role => new ManagedRole(role.Id, role.TenantId, role.UnitOrganizationId,
-                role.Code, role.DisplayName, role.IsActive)).ToArrayAsync(cancellationToken);
+                role.DisplayName, role.IsActive)).ToArrayAsync(cancellationToken);
         return new PageSlice<ManagedRole>(items, totalCount);
     }
 
@@ -346,12 +327,12 @@ public sealed partial class SqlUserStore(UserManagementDbContext db, ILogger<Sql
             user.DisplayName, user.IsActive && (activeMembership || user.IsSuperAdmin), user.CreatedAt,
             user.Roles.Where(value => value.UnitOrganizationId == organization.Id && value.Role.IsActive &&
                 activeMembership)
-                .Select(value => Map(value.Role)).OrderBy(value => value.Code, StringComparer.Ordinal).ToArray(),
+                .Select(value => Map(value.Role)).OrderBy(value => value.DisplayName, StringComparer.Ordinal).ToArray(),
             user.IsSuperAdmin, activeMembership && membership!.IsAdmin);
     }
 
     private static ManagedRole Map(RoleEntity role) =>
-        new(role.Id, role.TenantId, role.UnitOrganizationId, role.Code, role.DisplayName, role.IsActive);
+        new(role.Id, role.TenantId, role.UnitOrganizationId, role.DisplayName, role.IsActive);
 
     private static ManagedUnitOrganization Map(UnitOrganizationEntity organization) =>
         new(organization.Id, organization.TenantId, organization.Name);

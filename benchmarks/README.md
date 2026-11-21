@@ -10,4 +10,4 @@ dotnet run --project benchmarks/UserManagement.Benchmarks -c Release -- --databa
 
 For a dedicated SQL Server benchmark database, set `UserManagementBenchmark__ConnectionString` and pass `--database sqlserver`. For a running service, create the benchmark UO `33333333-3333-3333-3333-333333333333` and user `9155ff4d-2708-4770-b87e-e238645ec5df` through administrator APIs, set `UserManagementBenchmark__ClientKey`, and pass `--remote-url http://localhost:5220`. Use a separate benchmark database. Warm-cache results describe in-process cache lookup speed, not total service throughput.
 
-The full JWT → User Management → Access Control → controller benchmark remains in the Access Control repository. This benchmark uses the `0.12.0` client NuGets from `.packages`, as does the rest of this repository. Historical results are in `docs`; they are not production capacity estimates.
+The full JWT → User Management → Access Control → controller benchmark remains in the Access Control repository. This benchmark uses the `0.13.0` client NuGets from `.packages`, as does the rest of this repository. Historical results are in `docs`; they are not production capacity estimates.

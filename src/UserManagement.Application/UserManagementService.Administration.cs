@@ -89,7 +89,7 @@ public sealed partial class UserManagementService
         var role = await store.UpdateRoleAsync(NormalizeTenant(tenantId), NormalizeOrganizationId(unitOrganizationId),
             roleId, NormalizeOrganizationName(displayName), cancellationToken);
         return role is null ? null : new RoleInfo(role.Id, role.TenantId, role.UnitOrganizationId,
-            role.Code, role.DisplayName, role.IsActive);
+            role.DisplayName, role.IsActive);
     }
 
 }

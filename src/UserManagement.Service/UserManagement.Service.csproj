@@ -1,10 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
-    <PackageReference Include="AdminManagement.Security" Version="0.13.0" />
+    <PackageReference Include="AdminManagement.Security" Version="0.14.0" />
     <ProjectReference Include="..\UserManagement.Application\UserManagement.Application.csproj" />
     <ProjectReference Include="..\UserManagement.Infrastructure\UserManagement.Infrastructure.csproj" />
-    <PackageReference Include="UserManagement.Contracts" Version="0.13.0" />
+    <PackageReference Include="UserManagement.Contracts" Version="0.14.0" />
   </ItemGroup>
 
   <ItemGroup>

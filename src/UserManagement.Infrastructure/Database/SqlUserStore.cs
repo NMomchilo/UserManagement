@@ -62,7 +62,7 @@ public sealed partial class SqlUserStore(UserManagementDbContext db, ILogger<Sql
                 assignment.Membership.IsActive &&
                 (!unitOrganizationId.HasValue || assignment.UnitOrganizationId == unitOrganizationId.Value))
             .Select(assignment => new { assignment.UserId, assignment.UnitOrganizationId,
-                assignment.RoleId, assignment.Role.DisplayName, assignment.Role.IsActive })
+                assignment.RoleId, assignment.Role.DisplayName, assignment.Role.Code, assignment.Role.IsActive })
             .ToArrayAsync(cancellationToken);
         var rolesByMembership = assignments.ToLookup(assignment => (assignment.UserId, assignment.UnitOrganizationId));
         var membershipsByUser = memberships.ToLookup(membership => membership.UserId);
@@ -75,7 +75,7 @@ public sealed partial class SqlUserStore(UserManagementDbContext db, ILogger<Sql
                         .OrderBy(assignment => assignment.DisplayName).ThenBy(assignment => assignment.RoleId)
                         .Select(assignment => new ManagedRole(assignment.RoleId, tenantId,
                             membership.UnitOrganizationId, assignment.DisplayName,
-                            assignment.IsActive)).ToArray())).ToArray())).ToArray();
+                            assignment.IsActive, assignment.Code)).ToArray())).ToArray())).ToArray();
         return new PageSlice<ManagedUserSummary>(items, totalCount);
     }
 
@@ -85,7 +85,7 @@ public sealed partial class SqlUserStore(UserManagementDbContext db, ILogger<Sql
                 role.UnitOrganizationId == unitOrganizationId && role.Id == roleId &&
                 role.UnitOrganization.IsActive)
             .Select(role => new ManagedRole(role.Id, role.TenantId, role.UnitOrganizationId,
-                role.DisplayName, role.IsActive))
+                role.DisplayName, role.IsActive, role.Code))
             .SingleOrDefaultAsync(cancellationToken);
 
     public async Task<bool> ReplaceRolesAsync(string tenantId, Guid unitOrganizationId, string objectId,
@@ -161,18 +161,33 @@ public sealed partial class SqlUserStore(UserManagementDbContext db, ILogger<Sql
     }
 
     public async Task<ManagedRole> CreateRoleAsync(string tenantId, Guid unitOrganizationId, string displayName,
+        string code,
         CancellationToken cancellationToken)
     {
         if (!await db.UnitOrganizations.AnyAsync(value => value.TenantId == tenantId &&
                 value.Id == unitOrganizationId && value.IsActive, cancellationToken))
             throw new ArgumentException("Unit organization does not exist in this tenant.", nameof(unitOrganizationId));
+        if (await db.Roles.AnyAsync(value => value.TenantId == tenantId &&
+                value.UnitOrganizationId == unitOrganizationId && value.Code == code, cancellationToken))
+            throw new RoleCodeConflictException();
         RoleEntity role = new()
         {
             Id = Guid.NewGuid(), TenantId = tenantId, UnitOrganizationId = unitOrganizationId,
-            DisplayName = displayName
+            DisplayName = displayName, Code = code
         };
         db.Roles.Add(role);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            db.Entry(role).State = EntityState.Detached;
+            if (await db.Roles.AsNoTracking().AnyAsync(value => value.TenantId == tenantId &&
+                    value.UnitOrganizationId == unitOrganizationId && value.Code == code, cancellationToken))
+                throw new RoleCodeConflictException();
+            throw;
+        }
         logger.LogInformation("Created role {RoleId} in organization {UnitOrganizationId}", role.Id, unitOrganizationId);
         return Map(role);
     }
@@ -207,9 +222,9 @@ public sealed partial class SqlUserStore(UserManagementDbContext db, ILogger<Sql
         }
         int totalCount = await query.CountAsync(cancellationToken);
         ManagedRole[] items = await query.OrderBy(role => role.UnitOrganizationId)
-            .ThenBy(role => role.DisplayName).ThenBy(role => role.Id).Skip(offset).Take(pageSize)
+            .ThenBy(role => role.Code).ThenBy(role => role.Id).Skip(offset).Take(pageSize)
             .Select(role => new ManagedRole(role.Id, role.TenantId, role.UnitOrganizationId,
-                role.DisplayName, role.IsActive)).ToArrayAsync(cancellationToken);
+                role.DisplayName, role.IsActive, role.Code)).ToArrayAsync(cancellationToken);
         return new PageSlice<ManagedRole>(items, totalCount);
     }
 
@@ -332,7 +347,7 @@ public sealed partial class SqlUserStore(UserManagementDbContext db, ILogger<Sql
     }
 
     private static ManagedRole Map(RoleEntity role) =>
-        new(role.Id, role.TenantId, role.UnitOrganizationId, role.DisplayName, role.IsActive);
+        new(role.Id, role.TenantId, role.UnitOrganizationId, role.DisplayName, role.IsActive, role.Code);
 
     private static ManagedUnitOrganization Map(UnitOrganizationEntity organization) =>
         new(organization.Id, organization.TenantId, organization.Name);

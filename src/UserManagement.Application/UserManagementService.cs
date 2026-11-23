@@ -99,9 +99,10 @@ public sealed partial class UserManagementService(IUserStore store, IOptions<Use
         Guid organizationId = NormalizeOrganizationId(request.UnitOrganizationId);
         string displayName = NormalizeOptional(request.DisplayName, options.Value.MaximumDisplayNameLength,
             nameof(request.DisplayName)) ?? throw new ArgumentException("Display name is required.", nameof(request));
-        ManagedRole role = await store.CreateRoleAsync(tenantId, organizationId, displayName, cancellationToken);
+        string code = NormalizeCode(request.Code);
+        ManagedRole role = await store.CreateRoleAsync(tenantId, organizationId, displayName, code, cancellationToken);
         logger.LogInformation("Created role {RoleId} in tenant {TenantId}", role.Id, tenantId);
-        return new RoleInfo(role.Id, role.TenantId, role.UnitOrganizationId, role.DisplayName, role.IsActive);
+        return new RoleInfo(role.Id, role.TenantId, role.UnitOrganizationId, role.DisplayName, role.IsActive, role.Code);
     }
 
     public async Task<bool> SetRoleActiveAsync(string tenantId, Guid unitOrganizationId, Guid roleId,
@@ -128,7 +129,7 @@ public sealed partial class UserManagementService(IUserStore store, IOptions<Use
         logger.LogDebug("Listed roles in tenant {TenantId}, organization {UnitOrganizationId}; page {Page}, count {Count}",
             normalizedTenant, unitOrganizationId, page, slice.Items.Count);
         return new PagedResult<RoleInfo>(slice.Items.Select(role => new RoleInfo(role.Id, role.TenantId,
-            role.UnitOrganizationId, role.DisplayName, role.IsActive)).ToArray(), slice.TotalCount, page, pageSize);
+            role.UnitOrganizationId, role.DisplayName, role.IsActive, role.Code)).ToArray(), slice.TotalCount, page, pageSize);
     }
 
     public async Task<RoleInfo?> GetRoleAsync(string tenantId, Guid unitOrganizationId, Guid roleId,
@@ -138,7 +139,7 @@ public sealed partial class UserManagementService(IUserStore store, IOptions<Use
         ManagedRole? role = await store.GetRoleAsync(NormalizeTenant(tenantId),
             NormalizeOrganizationId(unitOrganizationId), roleId, cancellationToken);
         return role is null ? null : new RoleInfo(role.Id, role.TenantId, role.UnitOrganizationId,
-            role.DisplayName, role.IsActive);
+            role.DisplayName, role.IsActive, role.Code);
     }
 
     public async Task<UnitOrganizationInfo> CreateUnitOrganizationAsync(CreateUnitOrganizationRequest request,
@@ -191,7 +192,7 @@ public sealed partial class UserManagementService(IUserStore store, IOptions<Use
 
     private static UserIdentityResponse Map(ManagedUser user) => new(user.Id, user.TenantId,
         user.UnitOrganizationId, user.UnitOrganizationName, user.IsActive,
-        user.Roles.Select(role => new UserRoleInfo(role.Id, role.DisplayName)).ToArray(),
+        user.Roles.Select(role => new UserRoleInfo(role.Id, role.DisplayName, role.Code)).ToArray(),
         user.IsSuperAdmin, user.IsUnitAdmin);
 
     private static UserSummary MapSummary(ManagedUserSummary user) =>
@@ -199,7 +200,7 @@ public sealed partial class UserManagementService(IUserStore store, IOptions<Use
             user.Memberships.Select(membership => new UserMembershipSummary(membership.UnitOrganizationId,
                 membership.UnitOrganizationName, membership.IsAdmin,
                 membership.Roles.Select(role => new UserRoleAssignmentInfo(role.Id,
-                    role.DisplayName, role.IsActive)).ToArray())).ToArray());
+                    role.DisplayName, role.IsActive, role.Code)).ToArray())).ToArray());
 
     private static UnitOrganizationInfo Map(ManagedUnitOrganization organization) =>
         new(organization.Id, organization.TenantId, organization.Name);
@@ -219,6 +220,17 @@ public sealed partial class UserManagementService(IUserStore store, IOptions<Use
         throw new ArgumentException("Unit organization name is required.", nameof(name));
 
     private static string NormalizeTenant(string tenantId) => NormalizeRequired(tenantId, 128, nameof(tenantId));
+
+    private static string NormalizeCode(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException("Role code is required.", nameof(value));
+        string code = value.Trim().ToLowerInvariant();
+        if (code.Length > 64 || code[0] is < 'a' or > 'z' ||
+            code.Skip(1).Any(character => character is not (>= 'a' and <= 'z' or >= '0' and <= '9' or '.' or '_' or '-')))
+            throw new ArgumentException("Role code must start with a letter and contain only letters, digits, dots, hyphens, or underscores (maximum 64 characters).", nameof(value));
+        return code;
+    }
 
     private static string NormalizeObjectId(string value)
     {

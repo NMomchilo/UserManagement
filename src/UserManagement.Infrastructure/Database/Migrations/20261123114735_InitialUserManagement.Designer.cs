@@ -12,7 +12,7 @@ using UserManagement.Infrastructure.Database;
 namespace UserManagement.Infrastructure.Database.Migrations
 {
     [DbContext(typeof(UserManagementDbContext))]
-    [Migration("20261121093346_InitialUserManagement")]
+    [Migration("20261123114735_InitialUserManagement")]
     partial class InitialUserManagement
     {
         /// <inheritdoc />
@@ -31,6 +31,11 @@ namespace UserManagement.Infrastructure.Database.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
                         .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<string>("DisplayName")
                         .IsRequired()
@@ -57,6 +62,9 @@ namespace UserManagement.Infrastructure.Database.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "UnitOrganizationId", "Code")
+                        .IsUnique();
 
                     b.ToTable("Roles", (string)null);
                 });

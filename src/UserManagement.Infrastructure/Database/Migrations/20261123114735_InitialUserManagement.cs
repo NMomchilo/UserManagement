@@ -71,6 +71,7 @@ namespace UserManagement.Infrastructure.Database.Migrations
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
                     TenantId = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
                     UnitOrganizationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Code = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
                     DisplayName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     IsActive = table.Column<bool>(type: "bit", nullable: false),
                     LastUpdateUser = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
@@ -157,6 +158,12 @@ namespace UserManagement.Infrastructure.Database.Migrations
                 table: "UserManagementRevisions",
                 columns: new[] { "Id", "LastUpdateTime", "LastUpdateUser", "Version" },
                 values: new object[] { new Guid("a9acd89c-9a57-48c3-9dd1-222222222222"), new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Migration", 0L });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Roles_TenantId_UnitOrganizationId_Code",
+                table: "Roles",
+                columns: new[] { "TenantId", "UnitOrganizationId", "Code" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_UnitOrganizationMemberships_TenantId_UnitOrganizationId",

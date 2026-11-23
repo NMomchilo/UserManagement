@@ -15,6 +15,7 @@ public sealed class UserManagementExceptionHandler(ILogger<UserManagementExcepti
             UnauthorizedAccessException => StatusCodes.Status403Forbidden,
             AdminDutyConflictException => StatusCodes.Status409Conflict,
             UnitOrganizationConflictException => StatusCodes.Status409Conflict,
+            RoleCodeConflictException => StatusCodes.Status409Conflict,
             _ => StatusCodes.Status500InternalServerError
         };
         if (status == StatusCodes.Status400BadRequest || status == StatusCodes.Status409Conflict ||

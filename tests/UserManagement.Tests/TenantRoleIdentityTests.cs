@@ -57,9 +57,9 @@ public sealed class TenantRoleIdentityTests
         Assert.True(await service.CreateUserInOrganizationAsync("tenant-b", OrganizationB, Oid, "User", null, default));
         await service.ResolveAsync(new UserIdentityRequest("tenant-a", OrganizationA, Oid), CancellationToken.None);
         await service.ResolveAsync(new UserIdentityRequest("tenant-b", OrganizationB, Oid), CancellationToken.None);
-        RoleInfo first = await service.CreateRoleAsync(new CreateRoleRequest("tenant-a", OrganizationA, "Reader"), CancellationToken.None);
-        RoleInfo second = await service.CreateRoleAsync(new CreateRoleRequest("tenant-a", OrganizationA, "Reader"), CancellationToken.None);
-        RoleInfo otherTenant = await service.CreateRoleAsync(new CreateRoleRequest("tenant-b", OrganizationB, "Reader"), CancellationToken.None);
+        RoleInfo first = await service.CreateRoleAsync(new CreateRoleRequest("tenant-a", OrganizationA, "Reader", "reader"), CancellationToken.None);
+        RoleInfo second = await service.CreateRoleAsync(new CreateRoleRequest("tenant-a", OrganizationA, "Reader", "reader-copy"), CancellationToken.None);
+        RoleInfo otherTenant = await service.CreateRoleAsync(new CreateRoleRequest("tenant-b", OrganizationB, "Reader", "reader"), CancellationToken.None);
 
         Assert.NotEqual(first.RoleId, second.RoleId);
         Assert.Equal(first.DisplayName, second.DisplayName);

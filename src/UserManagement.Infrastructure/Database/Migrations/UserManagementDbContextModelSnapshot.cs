@@ -29,6 +29,11 @@ namespace UserManagement.Infrastructure.Database.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasDefaultValueSql("NEWSEQUENTIALID()");
 
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -54,6 +59,9 @@ namespace UserManagement.Infrastructure.Database.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "UnitOrganizationId", "Code")
+                        .IsUnique();
 
                     b.ToTable("Roles", (string)null);
                 });

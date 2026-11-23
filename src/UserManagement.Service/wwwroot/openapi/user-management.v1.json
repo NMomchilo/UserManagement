@@ -711,7 +711,7 @@
             "description": "Actor has no management duty for the requested tenant or organization."
           }
         },
-        "description": "Omit unitOrganizationId for all active UOs, or supply it to filter. Stable order by UO ID, display name, and role ID."
+        "description": "Omit unitOrganizationId for all active UOs, or supply it to filter. Stable order by UO ID, code, and role ID."
       },
       "post": {
         "tags": [
@@ -719,7 +719,7 @@
         ],
         "summary": "Create a UO-scoped role",
         "operationId": "createRole",
-        "description": "Role IDs are stable for assignments and Access Control grants. Display names may repeat.",
+        "description": "Codes are unique per tenant and unit organization and remain reserved while inactive. Role IDs remain the identifiers for assignments and Access Control grants. Display names may repeat.",
         "security": [
           {
             "AdministratorApiKey": [],
@@ -736,6 +736,7 @@
               "example": {
                 "tenantId": "default",
                 "displayName": "Advisor",
+                "code": "advisor",
                 "unitOrganizationId": "33333333-3333-3333-3333-333333333333"
               }
             }
@@ -757,6 +758,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "409": {
+            "description": "Role code already exists in this tenant and unit organization"
           },
           "500": {
             "$ref": "#/components/responses/ServiceError"
@@ -2012,7 +2016,8 @@
         "type": "object",
         "required": [
           "roleId",
-          "displayName"
+          "displayName",
+          "code"
         ],
         "properties": {
           "roleId": {
@@ -2022,6 +2027,10 @@
           "displayName": {
             "type": "string",
             "maxLength": 200
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 64
           }
         }
       },
@@ -2030,6 +2039,7 @@
         "required": [
           "tenantId",
           "displayName",
+          "code",
           "unitOrganizationId"
         ],
         "properties": {
@@ -2040,6 +2050,12 @@
           "displayName": {
             "type": "string",
             "maxLength": 200
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
           },
           "unitOrganizationId": {
             "type": "string",
@@ -2055,6 +2071,7 @@
           "roleId",
           "tenantId",
           "displayName",
+          "code",
           "unitOrganizationId",
           "isActive"
         ],
@@ -2070,6 +2087,10 @@
           "displayName": {
             "type": "string",
             "maxLength": 200
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 64
           },
           "unitOrganizationId": {
             "type": "string",
@@ -2222,6 +2243,7 @@
         "required": [
           "roleId",
           "displayName",
+          "code",
           "isActive"
         ],
         "properties": {
@@ -2231,6 +2253,10 @@
           },
           "displayName": {
             "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 64
           },
           "isActive": {
             "type": "boolean"

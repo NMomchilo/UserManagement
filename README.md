@@ -19,14 +19,14 @@ An administrator explicitly creates a user with `POST /v1/users/{oid}`. Supplyin
 
 An active SuperAdmin can manage all UOs in their application tenant. A UO Admin can manage only their assigned, active UOs and may be an ordinary user in other UOs. Only a SuperAdmin can grant or revoke SuperAdmin and UO Admin duties, deactivate/reactivate users, and manage UOs globally. The service does **not** seed the first SuperAdmin at startup or provide a bootstrap tool; a controlled deployment seed is required before administrator REST operations can provision further administrators.
 
-Administrator reads include `isSuperAdmin` on the user and `isAdmin` on each membership. `GET /v1/users?tenantId=default` lists users for a SuperAdmin; `GET /v1/users/by-email` searches by email; `GET /v1/users/{oid}` reads one user, optionally scoped to a UO. `GET /v1/unit-organizations/{id}/users` and `GET /v1/roles` are paginated. `POST /v1/roles` creates a business role in an existing UO. Access Control separately creates entitlements and grants them to that role ID. See the [API guide](docs/user-management-api.md) and [OpenAPI 3 specification](src/UserManagement.Service/wwwroot/openapi/user-management.v1.json) for all routes, request bodies, and scope rules.
+Administrator reads include `isSuperAdmin` on the user and `isAdmin` on each membership. `GET /v1/users?tenantId=default` lists users for a SuperAdmin; `GET /v1/users/by-email` searches by email; `GET /v1/users/{oid}` reads one user, optionally scoped to a UO. `GET /v1/unit-organizations/{id}/users` and `GET /v1/roles` are paginated. `POST /v1/roles` creates a business role in an existing UO with a required, immutable `code` and display name. The code is unique within tenant and UO, including disabled roles; assignments and decisions still use the role GUID. Access Control separately creates entitlements with codes and grants entitlement GUIDs to that role ID. See the [API guide](docs/user-management-api.md) and [OpenAPI 3 specification](src/UserManagement.Service/wwwroot/openapi/user-management.v1.json) for all routes, request bodies, and scope rules.
 
 ## Run locally
 
 Install the .NET 10 SDK and Docker. From this repository root, start the SQL Server defined in [docker-compose.yml](docker-compose.yml) and then the service:
 
 ```powershell
-# The six Shared 0.13.0 NuGet files are included in .packages.
+# The six Shared 0.14.0 NuGet files are included in .packages.
 docker compose up -d sqlserver
 dotnet run --project src/UserManagement.Service --launch-profile http
 ```
@@ -41,7 +41,7 @@ Open `http://localhost:5220/swagger`. The local SQL Server is exposed on **1434*
 
 ## Use the NuGet packages
 
-The service, tests, and benchmarks use versioned `0.13.0` NuGet packages from Shared. This repository includes the six package files in `.packages`: `AccessControl.Client`, `AccessControl.Contracts`, `UserManagement.Client`, `UserManagement.Contracts`, `Common.Persistence`, and `AdminManagement.Security`. Their versions must match the project references. When Shared releases a new version, pack it, update the project references, and replace these package files. For example, after packing Shared in any location:
+The service, tests, and benchmarks use versioned `0.14.0` NuGet packages from Shared. This repository includes the six package files in `.packages`: `AccessControl.Client`, `AccessControl.Contracts`, `UserManagement.Client`, `UserManagement.Contracts`, `Common.Persistence`, and `AdminManagement.Security`. Their versions must match the project references. When Shared releases a new version, pack it, update the project references, and replace these package files. For example, after packing Shared in any location:
 
 ```powershell
 Copy-Item 'C:\path\to\Shared\packages\*.nupkg' .packages\
@@ -50,7 +50,7 @@ dotnet restore UserManagement.sln
 
 `NuGet.config` maps these package IDs to `.packages`; no sibling checkout or package download is needed after cloning this repository with the package files committed. Once a private feed is chosen, replace that local source with the feed URL and supply its credentials through CI secrets; do not commit credentials.
 
-Install matching `UserManagement.Client` and `UserManagement.Contracts` versions (currently 0.13.0). Configure `UserManagement:ServiceUrl`, `ApiKey`, tenant settings, delegated scope, gateway identity/claim types, cache size/lifetime, and timeout. The consuming host validates the Entra JWT and gateway assertion; the NuGet does neither. An authenticated `Gateway` identity must carry `unit_organization_id` and `unit_organization_name` before `app.UseUserManagement()`. Do not derive it from untrusted headers.
+Install matching `UserManagement.Client` and `UserManagement.Contracts` versions (currently 0.14.0). Configure `UserManagement:ServiceUrl`, `ApiKey`, tenant settings, delegated scope, gateway identity/claim types, cache size/lifetime, and timeout. The consuming host validates the Entra JWT and gateway assertion; the NuGet does neither. An authenticated `Gateway` identity must carry `unit_organization_id` and `unit_organization_name` before `app.UseUserManagement()`. Do not derive it from untrusted headers.
 
 ```csharp
 builder.Services.AddUserManagement(builder.Configuration);

@@ -189,7 +189,7 @@ internal sealed class StoreClient(DbContextOptions<UserManagementDbContext> opti
             ?? throw new InvalidOperationException("Benchmark user must be provisioned before measurement.");
         return new UserIdentityResponse(user.Id, user.TenantId, user.UnitOrganizationId,
             user.UnitOrganizationName, user.IsActive,
-            user.Roles.Select(role => new UserRoleInfo(role.Id, role.DisplayName)).ToArray(),
+            user.Roles.Select(role => new UserRoleInfo(role.Id, role.DisplayName, role.Code)).ToArray(),
             user.IsSuperAdmin, user.IsUnitAdmin);
     }
 }

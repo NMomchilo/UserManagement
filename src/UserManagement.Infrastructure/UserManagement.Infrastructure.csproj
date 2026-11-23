@@ -3,7 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\UserManagement.Application\UserManagement.Application.csproj" />
     <ProjectReference Include="..\UserManagement.Domain\UserManagement.Domain.csproj" />
-    <PackageReference Include="Common.Persistence" Version="0.13.0" />
+    <PackageReference Include="Common.Persistence" Version="0.14.0" />
   </ItemGroup>
 
   <ItemGroup>

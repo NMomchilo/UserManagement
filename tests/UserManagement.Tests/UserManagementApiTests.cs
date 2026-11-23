@@ -83,7 +83,7 @@ public sealed class UserManagementApiTests
             await scope.ServiceProvider.GetRequiredService<UserManagementService>()
                 .CreateUnitOrganizationAsync(new(OrganizationId, "default", "Alpha"), default);
         using HttpResponseMessage createdRole = await SendAdminAsync(client, HttpMethod.Post, "/v1/roles",
-            new CreateRoleRequest("default", OrganizationId, "Reader"));
+            new CreateRoleRequest("default", OrganizationId, "Reader", "reader"));
         Assert.Equal(HttpStatusCode.Created, createdRole.StatusCode);
         RoleInfo role = (await createdRole.Content.ReadFromJsonAsync<RoleInfo>())!;
 
@@ -216,7 +216,7 @@ public sealed class UserManagementApiTests
         Assert.Empty(first!.Roles);
         using HttpRequestMessage createRole = new(HttpMethod.Post, "/v1/roles")
         {
-            Content = JsonContent.Create(new CreateRoleRequest("default", OrganizationId, "Administrator"))
+            Content = JsonContent.Create(new CreateRoleRequest("default", OrganizationId, "Administrator", "administrator"))
         };
         createRole.Headers.Add("X-User-Management-Key", AdminKey);
         using HttpResponseMessage createdRole = await client.SendAsync(createRole);
@@ -446,13 +446,13 @@ public sealed class UserManagementApiTests
             $"/v1/users/{oids[2]}/active?tenantId=default", new SetActiveRequest(false)))
             Assert.Equal(HttpStatusCode.NoContent, disabled.StatusCode);
         using (HttpResponseMessage extraRole = await SendAdminAsync(client, HttpMethod.Post, "/v1/roles",
-            new CreateRoleRequest("default", OrganizationId, "Manager")))
+            new CreateRoleRequest("default", OrganizationId, "Manager", "manager")))
             Assert.Equal(HttpStatusCode.Created, extraRole.StatusCode);
         using (HttpResponseMessage secondRole = await SendAdminAsync(client, HttpMethod.Post, "/v1/roles",
-            new CreateRoleRequest("default", OrganizationId, "Auditor")))
+            new CreateRoleRequest("default", OrganizationId, "Auditor", "auditor")))
             Assert.Equal(HttpStatusCode.Created, secondRole.StatusCode);
         using (HttpResponseMessage thirdRole = await SendAdminAsync(client, HttpMethod.Post, "/v1/roles",
-            new CreateRoleRequest("default", secondOrganizationId, "Observer")))
+            new CreateRoleRequest("default", secondOrganizationId, "Observer", "observer")))
             Assert.Equal(HttpStatusCode.Created, thirdRole.StatusCode);
 
         using HttpResponseMessage usersPage1 = await SendAdminAsync(client, HttpMethod.Get,
@@ -555,7 +555,7 @@ public sealed class UserManagementApiTests
         await factory.InitializeAsync();
         await factory.ProvisionAsync("default", OrganizationId, "Alpha", Oid);
         using HttpResponseMessage createdRole = await SendAdminAsync(client, HttpMethod.Post, "/v1/roles",
-            new CreateRoleRequest("default", OrganizationId, "Reader"));
+            new CreateRoleRequest("default", OrganizationId, "Reader", "reader"));
         RoleInfo role = (await createdRole.Content.ReadFromJsonAsync<RoleInfo>())!;
         Assert.Equal(HttpStatusCode.Created, createdRole.StatusCode);
         using HttpResponseMessage assignedRole = await SendAdminAsync(client, HttpMethod.Put,

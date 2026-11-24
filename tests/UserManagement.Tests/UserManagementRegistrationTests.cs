@@ -21,15 +21,14 @@ public sealed class UserManagementRegistrationTests
         using ServiceProvider provider = services.BuildServiceProvider();
 
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(RedisUserResolutionCache));
-        Assert.Equal("Gateway", provider.GetRequiredService<IOptions<UserManagementClientOptions>>().Value
-            .GatewayIdentityAuthenticationType);
+        Assert.Equal("X-Unit-Organization-Id", provider.GetRequiredService<IOptions<UserManagementClientOptions>>().Value
+            .UnitOrganizationIdHeaderName);
         Assert.Contains(services, descriptor => descriptor.ImplementationType == typeof(UserManagementRevisionPoller));
     }
 
     [Theory]
-    [InlineData("UserManagement:GatewayIdentityAuthenticationType")]
-    [InlineData("UserManagement:UnitOrganizationIdClaimType")]
-    [InlineData("UserManagement:UnitOrganizationNameClaimType")]
+    [InlineData("UserManagement:UnitOrganizationIdHeaderName")]
+    [InlineData("UserManagement:UnitOrganizationNameHeaderName")]
     [InlineData("UserManagement:RequiredDelegatedScope")]
     public void AddUserManagement_RejectsMissingSecurityConfiguration(string key)
     {
@@ -50,9 +49,8 @@ public sealed class UserManagementRegistrationTests
         {
             ["UserManagement:ServiceUrl"] = "https://user-management.example/",
             ["UserManagement:ApiKey"] = "test-client-key",
-            ["UserManagement:GatewayIdentityAuthenticationType"] = "Gateway",
-            ["UserManagement:UnitOrganizationIdClaimType"] = "unit_organization_id",
-            ["UserManagement:UnitOrganizationNameClaimType"] = "unit_organization_name",
+            ["UserManagement:UnitOrganizationIdHeaderName"] = "X-Unit-Organization-Id",
+            ["UserManagement:UnitOrganizationNameHeaderName"] = "X-Unit-Organization-Name",
             ["UserManagement:RequiredDelegatedScope"] = "user_impersonation"
         };
         if (overrides is not null)

@@ -1894,7 +1894,7 @@
           "unitOrganizationId": {
             "type": "string",
             "format": "uuid",
-            "description": "ID from the validated gateway identity; the UO must already exist.",
+            "description": "ID supplied by trusted ingress headers to the consuming API; the UO must already exist.",
             "example": "33333333-3333-3333-3333-333333333333"
           },
           "objectId": {

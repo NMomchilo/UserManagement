@@ -18,7 +18,7 @@
   <ItemGroup>
     <Using Include="Xunit" />
     <PackageReference Include="AdminManagement.Security" Version="0.17.0" />
-    <PackageReference Include="UserManagement.Client" Version="0.17.0" />
+    <PackageReference Include="UserManagement.Client" Version="0.18.0" />
     <ProjectReference Include="..\..\src\UserManagement.Service\UserManagement.Service.csproj" />
     <ProjectReference Include="..\..\src\UserManagement.Infrastructure\UserManagement.Infrastructure.csproj" />
   </ItemGroup>

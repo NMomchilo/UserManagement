@@ -4,6 +4,7 @@ using UserManagement.Application;
 using UserManagement.Infrastructure;
 using UserManagement.Infrastructure.Database;
 using UserManagement.Service.Security;
+using Shared.Infrastructure;
 
 namespace UserManagement.Service;
 
@@ -12,6 +13,7 @@ public static class Program
     public static void Main(string[] args)
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+        builder.Configuration.AddSharedKeyVault();
         builder.Services.AddUserManagementApplication();
         builder.Services.AddUserManagementInfrastructure(builder.Configuration);
         builder.Services.AddEntraAdminAuthentication(builder.Configuration);

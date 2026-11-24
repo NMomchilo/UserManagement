@@ -20,11 +20,10 @@ public sealed class UserManagementRegistrationTests
         services.AddUserManagement(configuration);
         using ServiceProvider provider = services.BuildServiceProvider();
 
-        Assert.IsType<UserResolutionCache>(provider.GetRequiredService<IUserManagementClient>());
+        Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(RedisUserResolutionCache));
         Assert.Equal("Gateway", provider.GetRequiredService<IOptions<UserManagementClientOptions>>().Value
             .GatewayIdentityAuthenticationType);
-        Assert.Contains(provider.GetServices<IHostedService>(), service =>
-            service is UserManagementRevisionPoller);
+        Assert.Contains(services, descriptor => descriptor.ImplementationType == typeof(UserManagementRevisionPoller));
     }
 
     [Theory]

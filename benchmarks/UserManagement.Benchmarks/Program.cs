@@ -10,6 +10,8 @@ using Microsoft.Extensions.Options;
 using UserManagement.Client;
 using UserManagement.Contracts;
 using UserManagement.Infrastructure.Database;
+using Shared.Infrastructure;
+using StackExchange.Redis;
 
 const string oid = "9155ff4d-2708-4770-b87e-e238645ec5df";
 UserIdentityRequest request = new("default", Guid.Parse("33333333-3333-3333-3333-333333333333"), oid);
@@ -115,6 +117,16 @@ List<BenchmarkResult> results = [];
 results.Add(await MeasureAsync(sourceLabel, source, source, request, count, concurrency));
 await cached.ResolveAsync(request, CancellationToken.None);
 results.Add(await MeasureAsync("bounded 5-second cache", cached, source, request, count, concurrency));
+string? redisConnectionString = Environment.GetEnvironmentVariable("UserManagementBenchmark__RedisConnectionString");
+if (!string.IsNullOrWhiteSpace(redisConnectionString))
+{
+    using IConnectionMultiplexer multiplexer = await ConnectionMultiplexer.ConnectAsync(redisConnectionString);
+    RedisUserResolutionCache redisCached = new(source, new RedisCacheService(multiplexer, 0, "benchmark-um"),
+        Options.Create(new UserManagementClientOptions { CacheLifetime = TimeSpan.FromSeconds(5) }),
+        NullLogger<RedisUserResolutionCache>.Instance);
+    await redisCached.ResolveAsync(request, CancellationToken.None);
+    results.Add(await MeasureAsync("Redis 5-second cache", redisCached, source, request, count, concurrency));
+}
 
 BenchmarkReport report = new(DateTimeOffset.UtcNow, RuntimeInformation.FrameworkDescription,
     RuntimeInformation.OSDescription, count, concurrency, results);

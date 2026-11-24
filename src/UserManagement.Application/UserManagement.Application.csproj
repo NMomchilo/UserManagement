@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <PackageReference Include="UserManagement.Contracts" Version="0.14.0" />
+    <PackageReference Include="UserManagement.Contracts" Version="0.17.0" />
     <ProjectReference Include="..\UserManagement.Domain\UserManagement.Domain.csproj" />
   </ItemGroup>
 

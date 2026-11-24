@@ -13,12 +13,12 @@
     <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.50.3" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
-    <PackageReference Include="AccessControl.Client" Version="0.14.0" />
+    <PackageReference Include="AccessControl.Client" Version="0.17.0" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
-    <PackageReference Include="AdminManagement.Security" Version="0.14.0" />
-    <PackageReference Include="UserManagement.Client" Version="0.14.0" />
+    <PackageReference Include="AdminManagement.Security" Version="0.17.0" />
+    <PackageReference Include="UserManagement.Client" Version="0.17.0" />
     <ProjectReference Include="..\..\src\UserManagement.Service\UserManagement.Service.csproj" />
     <ProjectReference Include="..\..\src\UserManagement.Infrastructure\UserManagement.Infrastructure.csproj" />
   </ItemGroup>

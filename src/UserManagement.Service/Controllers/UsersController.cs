@@ -81,8 +81,8 @@ public sealed class UsersController(UserManagementService service, IUserManageme
     {
         await authorizer.RequireAdminAsync(tenantId, VerifiedAdminIdentity.Oid(User, tenantId), unitOrganizationId, cancellationToken);
         bool found = await service.ReplaceRolesAsync(tenantId, unitOrganizationId, objectId, request, cancellationToken);
-        logger.LogInformation("Administrator {Actor} replaced roles; found {Found}; trace {TraceId}",
-            HttpContext.Items["UserManagementActor"], found, HttpContext.TraceIdentifier);
+        logger.LogInformation("Administrator replaced roles; found {Found}; trace {TraceId}",
+            found, HttpContext.TraceIdentifier);
         return found ? NoContent() : NotFound();
     }
 
@@ -94,8 +94,8 @@ public sealed class UsersController(UserManagementService service, IUserManageme
     {
         await authorizer.RequireSuperAdminAsync(tenantId, VerifiedAdminIdentity.Oid(User, tenantId), cancellationToken);
         bool found = await service.SetActiveAsync(tenantId, objectId, request, cancellationToken);
-        logger.LogInformation("Administrator {Actor} changed user status; found {Found}; trace {TraceId}",
-            HttpContext.Items["UserManagementActor"], found, HttpContext.TraceIdentifier);
+        logger.LogInformation("Administrator changed user status; found {Found}; trace {TraceId}",
+            found, HttpContext.TraceIdentifier);
         return found ? NoContent() : NotFound();
     }
 
@@ -112,8 +112,8 @@ public sealed class UsersController(UserManagementService service, IUserManageme
                 throw new ArgumentException("Role IDs require a unit organization.", nameof(request));
             bool tenantUserCreated = await service.CreateUserAsync(tenantId, objectId,
                 request.DisplayName, request.Email, cancellationToken);
-            logger.LogInformation("SuperAdmin {Actor} created tenant user without organization; created {Created}; trace {TraceId}",
-                HttpContext.Items["UserManagementActor"], tenantUserCreated, HttpContext.TraceIdentifier);
+            logger.LogInformation("SuperAdmin created tenant user without organization; created {Created}; trace {TraceId}",
+                tenantUserCreated, HttpContext.TraceIdentifier);
             return tenantUserCreated ? StatusCode(StatusCodes.Status201Created) : Conflict();
         }
 

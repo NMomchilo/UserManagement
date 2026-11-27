@@ -23,11 +23,6 @@ public static class Program
             .Bind(builder.Configuration.GetSection(UserManagementOptions.SectionName))
             .Validate(UserManagementOptions.IsValid, "UserManagementRules exceed database limits.")
             .ValidateOnStart();
-        builder.Services.AddOptions<UserManagementKeyOptions>()
-            .Bind(builder.Configuration.GetSection(UserManagementKeyOptions.SectionName))
-            .Validate(UserManagementKeyOptions.IsValid,
-                "Configure distinct client and administrator credentials of at least 32 characters.")
-            .ValidateOnStart();
         builder.Services.AddControllers();
         builder.Services.AddProblemDetails();
         builder.Services.AddExceptionHandler<UserManagementExceptionHandler>();
@@ -48,7 +43,7 @@ public static class Program
             });
         }
         app.UseAuthentication();
-        app.UseMiddleware<UserManagementKeyMiddleware>();
+        app.UseMiddleware<UserManagementRequestMiddleware>();
         app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
         app.MapGet("/ready", async (UserManagementDbContext db, CancellationToken cancellationToken) =>
             await db.Database.CanConnectAsync(cancellationToken)

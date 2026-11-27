@@ -54,10 +54,8 @@ ICountedUserClient source;
 string sourceLabel;
 if (remoteUrl is not null)
 {
-    string key = Environment.GetEnvironmentVariable("UserManagementBenchmark__ClientKey")
-        ?? throw new ArgumentException("Set UserManagementBenchmark__ClientKey for remote mode.");
     http.BaseAddress = new Uri(remoteUrl.TrimEnd('/') + "/", UriKind.Absolute);
-    source = new RemoteClient(http, key);
+    source = new RemoteClient(http);
     sourceLabel = "HTTP user resolution";
 }
 else
@@ -206,7 +204,7 @@ internal sealed class StoreClient(DbContextOptions<UserManagementDbContext> opti
     }
 }
 
-internal sealed class RemoteClient(HttpClient http, string key) : ICountedUserClient
+internal sealed class RemoteClient(HttpClient http) : ICountedUserClient
 {
     private int _calls;
     public int Calls => Volatile.Read(ref _calls);
@@ -218,7 +216,6 @@ internal sealed class RemoteClient(HttpClient http, string key) : ICountedUserCl
         {
             Content = JsonContent.Create(request)
         };
-        message.Headers.Add("X-User-Management-Key", key);
         using HttpResponseMessage response = await http.SendAsync(message, cancellationToken);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<UserIdentityResponse>(cancellationToken)

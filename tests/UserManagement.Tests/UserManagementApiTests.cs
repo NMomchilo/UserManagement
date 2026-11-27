@@ -19,42 +19,66 @@ namespace UserManagement.Tests;
 public sealed class UserManagementApiTests
 {
     private const string Oid = "9155ff4d-2708-4770-b87e-e238645ec5df";
-    private const string ClientKey = "local-client-key-0123456789abcdef";
-    private const string AdminKey = "local-admin-key-0123456789abcdefg";
     private static readonly Guid OrganizationId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
     [Fact]
-    public async Task OptedInClientKeyRegistersProvidedOrganizationsIdempotentlyAsync()
+    public async Task AdminAccessWithoutKeyReturnsOnlyAuthenticatedActorsDutyAsync()
+    {
+        await using ApiFactory factory = new();
+        using HttpClient client = factory.CreateClient();
+        await factory.InitializeAsync();
+        const string path = "/v1/admin/access?tenantId=default";
+
+        using HttpResponseMessage unknown = await client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.OK, unknown.StatusCode);
+        Assert.False((await unknown.Content.ReadFromJsonAsync<AdminAccessInfo>())!.IsActive);
+
+        await factory.ProvisionAsync("default", OrganizationId, "Alpha",
+            "aaaaaaaa-1111-1111-1111-111111111111");
+        using HttpResponseMessage ordinary = await client.GetAsync(path);
+        AdminAccessInfo access = (await ordinary.Content.ReadFromJsonAsync<AdminAccessInfo>())!;
+        Assert.Equal(HttpStatusCode.OK, ordinary.StatusCode);
+        Assert.True(access.IsActive);
+        Assert.False(access.IsSuperAdmin);
+        Assert.False(access.CanManage);
+
+        using HttpRequestMessage invalid = new(HttpMethod.Get, path);
+        invalid.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "invalid-token");
+        using HttpResponseMessage rejected = await client.SendAsync(invalid);
+        Assert.Equal(HttpStatusCode.Unauthorized, rejected.StatusCode);
+    }
+
+    [Fact]
+    public async Task RegistrationWithoutKeyRegistersProvidedOrganizationsIdempotentlyAsync()
     {
         await using ApiFactory factory = new(useRealActorProvider: true);
         using HttpClient client = factory.CreateClient();
         await factory.InitializeAsync();
-        async Task<HttpResponseMessage> RegisterAsync(string key, string tenant, string name, Guid? id = null)
+        async Task<HttpResponseMessage> RegisterAsync(string tenant, string name, Guid? id = null)
         {
             using HttpRequestMessage request = new(HttpMethod.Post, "/v1/registrations/unit-organizations")
             {
                 Content = JsonContent.Create(new CreateUnitOrganizationRequest(id ?? OrganizationId, tenant, name))
             };
-            request.Headers.Add("X-User-Management-Key", key);
             return await client.SendAsync(request);
         }
 
-        using HttpResponseMessage created = await RegisterAsync(ClientKey, "default", "Alpha");
+        using HttpResponseMessage created = await RegisterAsync("default", "Alpha");
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        using HttpResponseMessage replay = await RegisterAsync(ClientKey, "default", "Alpha");
+        using HttpResponseMessage replay = await RegisterAsync("default", "Alpha");
         Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
-        using HttpResponseMessage renamed = await RegisterAsync(ClientKey, "default", "Renamed");
+        using HttpResponseMessage renamed = await RegisterAsync("default", "Renamed");
         Assert.Equal(HttpStatusCode.Conflict, renamed.StatusCode);
-        using HttpResponseMessage anotherTenant = await RegisterAsync(ClientKey, "another", "Beta", Guid.NewGuid());
+        using HttpResponseMessage anotherTenant = await RegisterAsync("another", "Beta", Guid.NewGuid());
         Assert.Equal(HttpStatusCode.Created, anotherTenant.StatusCode);
         using IServiceScope scope = factory.Services.CreateScope();
         UserManagementDbContext db = scope.ServiceProvider.GetRequiredService<UserManagementDbContext>();
         Assert.Equal(2, await db.UnitOrganizations.CountAsync());
         Assert.All(await db.UnitOrganizations.ToListAsync(), organization =>
-            Assert.Equal("sample-api", organization.LastUpdateUser));
+            Assert.Equal("unattributed-registration", organization.LastUpdateUser));
         await db.UnitOrganizations.Where(value => value.Id == OrganizationId)
             .ExecuteUpdateAsync(setters => setters.SetProperty(value => value.IsActive, false));
-        using HttpResponseMessage disabled = await RegisterAsync(ClientKey, "default", "Alpha");
+        using HttpResponseMessage disabled = await RegisterAsync("default", "Alpha");
         Assert.Equal(HttpStatusCode.Conflict, disabled.StatusCode);
     }
 
@@ -64,7 +88,7 @@ public sealed class UserManagementApiTests
         await using ApiFactory factory = new();
         using HttpClient client = factory.CreateClient();
         await factory.InitializeAsync();
-        using HttpRequestMessage resolve = ResolveRequest(ClientKey);
+        using HttpRequestMessage resolve = ResolveRequest();
         using HttpResponseMessage resolved = await client.SendAsync(resolve);
         Assert.Equal(HttpStatusCode.NotFound, resolved.StatusCode);
         using IServiceScope scope = factory.Services.CreateScope();
@@ -202,11 +226,7 @@ public sealed class UserManagementApiTests
         await factory.InitializeAsync();
         await factory.ProvisionAsync("default", OrganizationId, "Alpha", Oid, "user@example.com");
 
-        using HttpRequestMessage denied = ResolveRequest(AdminKey);
-        using HttpResponseMessage deniedResponse = await client.SendAsync(denied);
-        Assert.Equal(HttpStatusCode.Unauthorized, deniedResponse.StatusCode);
-
-        using HttpRequestMessage resolve = ResolveRequest(ClientKey);
+        using HttpRequestMessage resolve = ResolveRequest();
         using HttpResponseMessage resolvedResponse = await client.SendAsync(resolve);
         UserIdentityResponse? first = await resolvedResponse.Content.ReadFromJsonAsync<UserIdentityResponse>();
         Assert.Equal(HttpStatusCode.OK, resolvedResponse.StatusCode);
@@ -218,7 +238,6 @@ public sealed class UserManagementApiTests
         {
             Content = JsonContent.Create(new CreateRoleRequest("default", OrganizationId, "Administrator", "administrator"))
         };
-        createRole.Headers.Add("X-User-Management-Key", AdminKey);
         using HttpResponseMessage createdRole = await client.SendAsync(createRole);
         RoleInfo? admin = await createdRole.Content.ReadFromJsonAsync<RoleInfo>();
         Assert.Equal(HttpStatusCode.Created, createdRole.StatusCode);
@@ -236,7 +255,7 @@ public sealed class UserManagementApiTests
         {
             Content = JsonContent.Create(new ReplaceRolesRequest([admin!.RoleId]))
         };
-        blockedWrite.Headers.Add("X-User-Management-Key", ClientKey);
+        blockedWrite.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "invalid-token");
         using HttpResponseMessage blockedResponse = await client.SendAsync(blockedWrite);
         Assert.Equal(HttpStatusCode.Unauthorized, blockedResponse.StatusCode);
 
@@ -244,12 +263,11 @@ public sealed class UserManagementApiTests
         {
             Content = JsonContent.Create(new ReplaceRolesRequest([admin!.RoleId]))
         };
-        adminWrite.Headers.Add("X-User-Management-Key", AdminKey);
         using HttpResponseMessage written = await client.SendAsync(adminWrite);
         Assert.Equal(HttpStatusCode.NoContent, written.StatusCode);
         Assert.Equal(revisionBefore + 1, await ReadRevisionAsync(client));
 
-        using HttpRequestMessage second = ResolveRequest(ClientKey);
+        using HttpRequestMessage second = ResolveRequest();
         using HttpResponseMessage secondResponse = await client.SendAsync(second);
         UserIdentityResponse? updated = await secondResponse.Content.ReadFromJsonAsync<UserIdentityResponse>();
         Assert.NotNull(updated);
@@ -275,7 +293,6 @@ public sealed class UserManagementApiTests
         {
             Content = JsonContent.Create(new CreateUnitOrganizationRequest(emptyOrganizationId, "default", "Empty"))
         };
-        create.Headers.Add("X-User-Management-Key", AdminKey);
         using HttpResponseMessage created = await client.SendAsync(create);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
 
@@ -284,7 +301,6 @@ public sealed class UserManagementApiTests
         {
             Content = JsonContent.Create(new UpdateUnitOrganizationRequest("Renamed"))
         };
-        update.Headers.Add("X-User-Management-Key", AdminKey);
         using HttpResponseMessage updated = await client.SendAsync(update);
         Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
         Assert.Equal("Renamed", (await updated.Content.ReadFromJsonAsync<UnitOrganizationInfo>())?.Name);
@@ -293,20 +309,17 @@ public sealed class UserManagementApiTests
 
         using HttpRequestMessage delete = new(HttpMethod.Delete,
             $"/v1/unit-organizations/{emptyOrganizationId:D}?tenantId=default");
-        delete.Headers.Add("X-User-Management-Key", AdminKey);
         using HttpResponseMessage deleted = await client.SendAsync(delete);
         Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
         Assert.Equal(revisionBeforeDelete + 1, await ReadRevisionAsync(client));
 
         using HttpRequestMessage repeatedDelete = new(HttpMethod.Delete,
             $"/v1/unit-organizations/{emptyOrganizationId:D}?tenantId=default");
-        repeatedDelete.Headers.Add("X-User-Management-Key", AdminKey);
         using HttpResponseMessage repeatedDeleteResponse = await client.SendAsync(repeatedDelete);
         Assert.Equal(HttpStatusCode.NoContent, repeatedDeleteResponse.StatusCode);
 
         using HttpRequestMessage getDeleted = new(HttpMethod.Get,
             $"/v1/unit-organizations/{emptyOrganizationId:D}?tenantId=default");
-        getDeleted.Headers.Add("X-User-Management-Key", AdminKey);
         using HttpResponseMessage getDeletedResponse = await client.SendAsync(getDeleted);
         Assert.Equal(HttpStatusCode.NotFound, getDeletedResponse.StatusCode);
 
@@ -314,7 +327,6 @@ public sealed class UserManagementApiTests
         {
             Content = JsonContent.Create(new CreateUnitOrganizationRequest(emptyOrganizationId, "default", "Reused"))
         };
-        recreate.Headers.Add("X-User-Management-Key", AdminKey);
         using HttpResponseMessage recreateResponse = await client.SendAsync(recreate);
         Assert.Equal(HttpStatusCode.Conflict, recreateResponse.StatusCode);
 
@@ -322,20 +334,18 @@ public sealed class UserManagementApiTests
         {
             Content = JsonContent.Create(new UserIdentityRequest("default", emptyOrganizationId, Oid))
         };
-        deletedResolve.Headers.Add("X-User-Management-Key", ClientKey);
         using HttpResponseMessage deletedResolveResponse = await client.SendAsync(deletedResolve);
         Assert.Equal(HttpStatusCode.NotFound, deletedResolveResponse.StatusCode);
 
         await factory.ProvisionAsync("default", OrganizationId, "Alpha", Oid);
-        using HttpRequestMessage resolve = ResolveRequest(ClientKey);
+        using HttpRequestMessage resolve = ResolveRequest();
         using HttpResponseMessage resolved = await client.SendAsync(resolve);
         Assert.Equal(HttpStatusCode.OK, resolved.StatusCode);
         using HttpRequestMessage referencedDelete = new(HttpMethod.Delete,
             $"/v1/unit-organizations/{OrganizationId:D}?tenantId=default");
-        referencedDelete.Headers.Add("X-User-Management-Key", AdminKey);
         using HttpResponseMessage deletedReferenced = await client.SendAsync(referencedDelete);
         Assert.Equal(HttpStatusCode.NoContent, deletedReferenced.StatusCode);
-        using HttpRequestMessage cannotResolve = ResolveRequest(ClientKey);
+        using HttpRequestMessage cannotResolve = ResolveRequest();
         using HttpResponseMessage cannotResolveResponse = await client.SendAsync(cannotResolve);
         Assert.Equal(HttpStatusCode.NotFound, cannotResolveResponse.StatusCode);
     }
@@ -401,7 +411,7 @@ public sealed class UserManagementApiTests
     }
 
     [Fact]
-    public async Task HealthAndReadinessArePublicButOtherMethodsRequireCredentialsAsync()
+    public async Task HealthAndReadinessAreGetOnlyAsync()
     {
         await using ApiFactory factory = new();
         using HttpClient client = factory.CreateClient();
@@ -413,7 +423,7 @@ public sealed class UserManagementApiTests
 
         Assert.Equal(HttpStatusCode.OK, live.StatusCode);
         Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, unexpectedMethod.StatusCode);
+        Assert.Equal(HttpStatusCode.MethodNotAllowed, unexpectedMethod.StatusCode);
     }
 
     [Fact]
@@ -562,7 +572,7 @@ public sealed class UserManagementApiTests
             $"/v1/users/{Oid}/roles?tenantId=default&unitOrganizationId={OrganizationId:D}",
             new ReplaceRolesRequest([role.RoleId]));
         Assert.Equal(HttpStatusCode.NoContent, assignedRole.StatusCode);
-        using HttpRequestMessage firstRequest = ResolveRequest(ClientKey);
+        using HttpRequestMessage firstRequest = ResolveRequest();
         using HttpResponseMessage firstResponse = await client.SendAsync(firstRequest);
         UserIdentityResponse first = (await firstResponse.Content.ReadFromJsonAsync<UserIdentityResponse>())!;
         Guid roleId = first.Roles.Single().RoleId;
@@ -575,7 +585,7 @@ public sealed class UserManagementApiTests
         using HttpResponseMessage missingFlag = await SendAdminAsync(client, HttpMethod.Put, path, new { });
         Assert.Equal(HttpStatusCode.BadRequest, missingFlag.StatusCode);
         Assert.Equal(revision + 1, await ReadRevisionAsync(client));
-        using HttpRequestMessage nextRequest = ResolveRequest(ClientKey);
+        using HttpRequestMessage nextRequest = ResolveRequest();
         using HttpResponseMessage nextResponse = await client.SendAsync(nextRequest);
         Assert.Empty((await nextResponse.Content.ReadFromJsonAsync<UserIdentityResponse>())!.Roles);
         using HttpResponseMessage listed = await SendAdminAsync(client, HttpMethod.Get,
@@ -588,7 +598,6 @@ public sealed class UserManagementApiTests
     {
         using HttpRequestMessage request = new(method, path);
         if (body is not null) request.Content = JsonContent.Create(body);
-        request.Headers.Add("X-User-Management-Key", AdminKey);
         return await client.SendAsync(request);
     }
 
@@ -597,24 +606,22 @@ public sealed class UserManagementApiTests
     {
         using HttpRequestMessage request = new(method, path);
         if (body is not null) request.Content = JsonContent.Create(body);
-        request.Headers.Add("X-User-Management-Key", ClientKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "invalid-token");
         return await client.SendAsync(request);
     }
 
-    private static HttpRequestMessage ResolveRequest(string key)
+    private static HttpRequestMessage ResolveRequest()
     {
         HttpRequestMessage request = new(HttpMethod.Post, "/v1/users/resolve")
         {
             Content = JsonContent.Create(new UserIdentityRequest("default", OrganizationId, Oid))
         };
-        request.Headers.Add("X-User-Management-Key", key);
         return request;
     }
 
     private static async Task<long> ReadRevisionAsync(HttpClient client)
     {
         using HttpRequestMessage request = new(HttpMethod.Get, "/v1/users/revision");
-        request.Headers.Add("X-User-Management-Key", ClientKey);
         using HttpResponseMessage response = await client.SendAsync(request);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<long>();
@@ -661,12 +668,6 @@ public sealed class UserManagementApiTests
         {
             builder.UseSetting("UserManagementDatabase:ApplyMigrationsOnStartup", "false");
             builder.UseSetting("ConnectionStrings:UserManagement", "Server=localhost;Database=unused;Trusted_Connection=True");
-            builder.UseSetting("UserManagementKeys:Clients:0:ClientId", "sample-api");
-            builder.UseSetting("UserManagementKeys:Clients:0:Key", ClientKey);
-            builder.UseSetting("UserManagementKeys:Clients:0:CanRegisterUnitOrganizations", "true");
-            builder.UseSetting("UserManagementKeys:Administrators:0:ActorId", "operator");
-            builder.UseSetting("UserManagementKeys:Administrators:0:Key", AdminKey);
-            builder.UseSetting("UserManagementKeys:AdminLookupKey", new string('l', 40));
             builder.UseSetting("EntraAdmin:Authority", "https://login.microsoftonline.com/test-tenant");
             builder.UseSetting("EntraAdmin:Audience", "api://test-admin");
             builder.ConfigureTestServices(services =>

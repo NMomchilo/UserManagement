@@ -42,8 +42,8 @@ public sealed class UnitOrganizationsController(UserManagementService service, I
     {
         await authorizer.RequireSuperAdminAsync(request.TenantId, VerifiedAdminIdentity.Oid(User, request.TenantId), cancellationToken);
         UnitOrganizationInfo organization = await service.CreateUnitOrganizationAsync(request, cancellationToken);
-        logger.LogInformation("Administrator {Actor} created organization {UnitOrganizationId}; trace {TraceId}",
-            HttpContext.Items["UserManagementActor"], organization.Id, HttpContext.TraceIdentifier);
+        logger.LogInformation("Administrator created organization {UnitOrganizationId}; trace {TraceId}",
+            organization.Id, HttpContext.TraceIdentifier);
         return Created($"/v1/unit-organizations/{organization.Id:D}?tenantId={Uri.EscapeDataString(organization.TenantId)}",
             organization);
     }
@@ -82,8 +82,8 @@ public sealed class UnitOrganizationsController(UserManagementService service, I
         await authorizer.RequireSuperAdminAsync(tenantId, VerifiedAdminIdentity.Oid(User, tenantId), cancellationToken);
         UnitOrganizationInfo? organization = await service.UpdateUnitOrganizationAsync(tenantId, id, request,
             cancellationToken);
-        logger.LogInformation("Administrator {Actor} updated organization {UnitOrganizationId}; found {Found}; trace {TraceId}",
-            HttpContext.Items["UserManagementActor"], id, organization is not null, HttpContext.TraceIdentifier);
+        logger.LogInformation("Administrator updated organization {UnitOrganizationId}; found {Found}; trace {TraceId}",
+            id, organization is not null, HttpContext.TraceIdentifier);
         return organization is null ? NotFound() : Ok(organization);
     }
 
@@ -95,8 +95,8 @@ public sealed class UnitOrganizationsController(UserManagementService service, I
     {
         await authorizer.RequireSuperAdminAsync(tenantId, VerifiedAdminIdentity.Oid(User, tenantId), cancellationToken);
         bool deleted = await service.DeleteUnitOrganizationAsync(tenantId, id, cancellationToken);
-        logger.LogInformation("Administrator {Actor} deleted organization {UnitOrganizationId}; deleted {Deleted}; trace {TraceId}",
-            HttpContext.Items["UserManagementActor"], id, deleted, HttpContext.TraceIdentifier);
+        logger.LogInformation("Administrator deleted organization {UnitOrganizationId}; deleted {Deleted}; trace {TraceId}",
+            id, deleted, HttpContext.TraceIdentifier);
         return deleted ? NoContent() : NotFound();
     }
 }

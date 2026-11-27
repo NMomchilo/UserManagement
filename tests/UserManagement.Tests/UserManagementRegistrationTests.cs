@@ -48,7 +48,6 @@ public sealed class UserManagementRegistrationTests
         Dictionary<string, string?> settings = new()
         {
             ["UserManagement:ServiceUrl"] = "https://user-management.example/",
-            ["UserManagement:ApiKey"] = "test-client-key",
             ["UserManagement:UnitOrganizationIdHeaderName"] = "X-Unit-Organization-Id",
             ["UserManagement:UnitOrganizationNameHeaderName"] = "X-Unit-Organization-Name",
             ["UserManagement:RequiredDelegatedScope"] = "user_impersonation"

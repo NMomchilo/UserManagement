@@ -3,7 +3,7 @@
   "info": {
     "title": "User Management Service API",
     "version": "7.0.0",
-    "description": "Tenant and unit-organization scoped user resolution and administration. Administrative requests require a service key and a signed actor JWT with matching application tenant. Database writes require a validated actor ID; a missing actor causes the write to fail. The service does not provision the first SuperAdmin."
+    "description": "Tenant and unit-organization scoped user resolution and administration. Human management requests require a validated Entra bearer token and current database duty. User resolution and revision polling are keyless; restrict these routes to trusted service network paths. Startup organization registration is keyless and uses an unattributed-registration write actor."
   },
   "servers": [
     {
@@ -34,7 +34,6 @@
         "summary": "Check service liveness",
         "description": "Returns success when the process responds. This endpoint does not check the database.",
         "operationId": "getUserManagementHealth",
-        "security": [],
         "responses": {
           "200": {
             "description": "Service process is running",
@@ -60,7 +59,6 @@
         "summary": "Check database readiness",
         "description": "Checks whether the User Management database can be reached. It does not apply migrations.",
         "operationId": "getUserManagementReadiness",
-        "security": [],
         "responses": {
           "200": {
             "description": "Database connection succeeded",
@@ -90,13 +88,8 @@
           "Client"
         ],
         "summary": "Register a unit organization at consuming API startup",
-        "description": "Uses an existing client key opted in with CanRegisterUnitOrganizations. A registration-enabled key may supply any tenant and organization ID; the configured ClientId identifies the write actor. Creates a missing organization, confirms an identical active one, and never renames or reactivates an existing organization.",
+        "description": "Creates a missing organization, confirms an identical active one, and never renames or reactivates an existing organization. Registration is keyless; restrict this route to trusted service network paths. New rows use an unattributed-registration write actor.",
         "operationId": "registerUnitOrganization",
-        "security": [
-          {
-            "ClientApiKey": []
-          }
-        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -136,9 +129,6 @@
           "400": {
             "description": "Invalid organization"
           },
-          "401": {
-            "description": "Invalid client key"
-          },
           "403": {
             "description": "Registration is not enabled for this client"
           },
@@ -156,11 +146,6 @@
         "summary": "Resolve an existing user and organization access",
         "description": "Read an existing user and active UO by validated oid, tenant, and gateway-authenticated UO ID. An ordinary user or UO Admin needs an active membership; an active SuperAdmin can resolve any active UO in the same tenant without one. Returns role IDs and current administrative duties. This request never creates a UO, user, membership, or role.",
         "operationId": "resolveUser",
-        "security": [
-          {
-            "ClientApiKey": []
-          }
-        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -220,11 +205,6 @@
         "summary": "Get the shared user, UO, and role revision",
         "description": "Consuming APIs and Access Control poll this revision to invalidate bounded user and role caches after administration changes.",
         "operationId": "getUserRoleRevision",
-        "security": [
-          {
-            "ClientApiKey": []
-          }
-        ],
         "responses": {
           "200": {
             "description": "Current revision as a JSON number",
@@ -258,7 +238,6 @@
         "operationId": "findUsersByEmail",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -329,7 +308,6 @@
         "operationId": "getManagedUser",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -388,7 +366,6 @@
         "operationId": "createManagedUser",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -463,7 +440,6 @@
         "operationId": "updateManagedUser",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -534,7 +510,6 @@
         "operationId": "replaceManagedUserRoles",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -596,7 +571,6 @@
         "operationId": "setManagedUserActiveStatus",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -652,7 +626,6 @@
         "operationId": "listRoles",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -722,7 +695,6 @@
         "description": "Codes are unique per tenant and unit organization and remain reserved while inactive. Role IDs remain the identifiers for assignments and Access Control grants. Display names may repeat.",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -780,7 +752,6 @@
         "operationId": "listUnitOrganizations",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -825,7 +796,6 @@
         "operationId": "createUnitOrganization",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -877,7 +847,6 @@
         "operationId": "getUnitOrganization",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -925,7 +894,6 @@
         "operationId": "updateUnitOrganization",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -983,7 +951,6 @@
         "operationId": "deleteUnitOrganization",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -1027,7 +994,6 @@
         "operationId": "listUsers",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -1105,7 +1071,6 @@
         "operationId": "listUnitOrganizationUsers",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -1188,7 +1153,6 @@
         "operationId": "listUnitOrganizationRoles",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -1258,7 +1222,6 @@
         "operationId": "getRoleById",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -1315,7 +1278,6 @@
         "operationId": "updateManagedRole",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -1392,7 +1354,6 @@
         "operationId": "setRoleActive",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -1457,7 +1418,6 @@
         "operationId": "getAdminAccess",
         "security": [
           {
-            "AdminLookupApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -1515,7 +1475,6 @@
         "operationId": "assignUserMembership",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -1573,7 +1532,6 @@
         "operationId": "revokeUserMembership",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -1633,7 +1591,6 @@
         "operationId": "setSuperAdminDuty",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -1694,7 +1651,6 @@
         "operationId": "setUnitAdminDuty",
         "security": [
           {
-            "AdministratorApiKey": [],
             "EntraAdminBearer": []
           }
         ],
@@ -1758,24 +1714,6 @@
   },
   "components": {
     "securitySchemes": {
-      "ClientApiKey": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "X-User-Management-Key",
-        "description": "Credential configured under UserManagementKeys:Clients. May opt in to startup organization registration for any tenant and organization."
-      },
-      "AdministratorApiKey": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "X-User-Management-Key",
-        "description": "Administrator service credential used together with a validated Entra token."
-      },
-      "AdminLookupApiKey": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "X-User-Management-Key",
-        "description": "Dedicated Access Control credential for current administrator-duty lookup."
-      },
       "EntraAdminBearer": {
         "type": "http",
         "scheme": "bearer",
@@ -2429,7 +2367,7 @@
         }
       },
       "Unauthorized": {
-        "description": "Missing or wrong credential for this operation"
+        "description": "Missing or invalid required Entra bearer token"
       },
       "ServiceError": {
         "description": "Service or database error",

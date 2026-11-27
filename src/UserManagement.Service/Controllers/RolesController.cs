@@ -49,8 +49,8 @@ public sealed class RolesController(UserManagementService service, IUserManageme
     {
         await authorizer.RequireAdminAsync(tenantId, VerifiedAdminIdentity.Oid(User, tenantId), unitOrganizationId, cancellationToken);
         bool found = await service.SetRoleActiveAsync(tenantId, unitOrganizationId, roleId, request, cancellationToken);
-        logger.LogInformation("Administrator {Actor} set role {RoleId} active status to {IsActive}; found {Found}; trace {TraceId}",
-            HttpContext.Items["UserManagementActor"], roleId, request.IsActive, found, HttpContext.TraceIdentifier);
+        logger.LogInformation("Administrator set role {RoleId} active status to {IsActive}; found {Found}; trace {TraceId}",
+            roleId, request.IsActive, found, HttpContext.TraceIdentifier);
         return found ? NoContent() : NotFound();
     }
 

@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using UserManagement.Application;
 using UserManagement.Contracts;
-using UserManagement.Service.Security;
 
 namespace UserManagement.Service.Controllers;
 
@@ -15,14 +14,11 @@ public sealed class RegistrationController(UserManagementService service, ILogge
     public async Task<IActionResult> RegisterAsync([FromBody] CreateUnitOrganizationRequest request,
         CancellationToken cancellationToken)
     {
-        if (HttpContext.Items[nameof(ServiceCredential)] is not ServiceCredential client ||
-            !client.CanRegisterUnitOrganizations)
-            return Forbid();
         if (request is null || string.IsNullOrWhiteSpace(request.TenantId) || request.Id == Guid.Empty ||
             string.IsNullOrWhiteSpace(request.Name)) return BadRequest();
         var (organization, created) = await service.RegisterUnitOrganizationAsync(request, cancellationToken);
-        logger.LogInformation("Registered unit organization {UnitOrganizationId} for client {ClientId}; created {Created}; trace {TraceId}",
-            organization.Id, client.ClientId, created, HttpContext.TraceIdentifier);
+        logger.LogInformation("Registered unit organization {UnitOrganizationId}; created {Created}; trace {TraceId}",
+            organization.Id, created, HttpContext.TraceIdentifier);
         return created ? StatusCode(StatusCodes.Status201Created, organization) : Ok(organization);
     }
 }
